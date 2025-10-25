@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>90-Day Exercise Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    // ⚠️ REPLACE WITH YOUR FIREBASE CONFIG ⚠️
+    const firebaseConfig = {
+      apiKey: "AIzaSyDflVWpWRaM79otPlFdgY9Jj2_TT8coP8c",
+      authDomain: "workout-tracker-cf45f.firebaseapp.com",
+      projectId: "workout-tracker-cf45f",
+      storageBucket: "workout-tracker-cf45f.appspot.com",
+      messagingSenderId: "557876111419",
+      appId: "1:557876111419:web:621155c84179128c89541e"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // Icons
+    const Icon = ({ children, className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+    );
+    
+    const Calendar = (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
+    const TrendingUp = (p) => <Icon {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></Icon>;
+    const Dumbbell = (p) => <Icon {...p} className={p.className || "w-5 h-5"}><path d="M14.4 14.4L9.6 9.6M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/></Icon>;
+    const Clock = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
+    const Play = (p) => <Icon {...p} className="w-4 h-4"><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
+    const RotateCcw = (p) => <Icon {...p}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></Icon>;
+    const Save = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Icon>;
+    const Trash2 = (p) => <Icon {...p} className="w-4 h-4"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Icon>;
+    const Edit2 = (p) => <Icon {...p} className="w-4 h-4"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
+    const Plus = (p) => <Icon {...p} className="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
+    const LogOut = (p) => <Icon {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Icon>;
+    const BarChart = (p) => <Icon {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></Icon>;
+
+    const EXERCISES = {
+      bicepTricep: [
+        {
+          name: 'Barbell Curl',
+          sets: 3,
+          reps: 12,
+          instructions: 'Stand with feet shoulder-width, grip barbell at shoulder-width, curl slowly keeping elbows tucked, pause at top, lower with control.',
+          videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=171'
+        },
+        {
+          name: 'Close-Grip Bench Press',
+          sets: 4,
+          reps: 12,
+          instructions: 'Lie on bench, grip barbell narrower than shoulder-width, lower to mid-chest, press up powerfully, keep elbows close to body.',
+          videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=614'
+        },
+        {
+          name: 'Weighted Chin-Up (Supinated Grip)',
+          sets: 3,
+          reps: 12,
+          instructions: 'Use supinated grip, hang with full stretch, pull up until chin over bar, lower slowly to avoid swinging.',
+          videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=330'
+        },
+        {
+          name: 'Dumbbell Preacher Curl',
+          sets: 4,
+          reps: 12,
+          instructions: 'Sit at preacher bench, arm fully extended, curl dumbbell up, squeeze at top, lower slowly to full stretch.',
+          videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=265'
+        },
+        {
+          name: 'Overhead Dumbbell Triceps Extension',
+          sets: 3,
+          reps: 12,
+          instructions: 'Hold dumbbell overhead with both hands, lower behind head keeping elbows high, extend arms fully, avoid flaring elbows.',
+          videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=524'
+        },
+        {
+          name: 'EZ Bar Reverse Curl',
+          sets: 3,
+          reps: 12,
+          instructions: 'Grip EZ bar overhand, curl up keeping wrists straight, pause at top, lower slowly to target brachioradialis.',
+          videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=489'
+        }
+      ],
+      chest: [
+        {
+          name: 'Barbell Bench Press',
+          sets: 4,
+          reps: 12,
+          instructions: 'Lie flat, grip barbell slightly wider than shoulders, lower to mid-chest, press up, keep scapulae retracted.',
+          videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=180'
+        },
+        {
+          name: 'Incline Dumbbell Press',
+          sets: 3,
+          reps: 12,
+          instructions: 'Set bench to 30-45°, hold dumbbells, press up while keeping slight arch in back, lower to chest level.',
+          videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=300'
+        },
+        {
+          name: 'Weighted Dips',
+          sets: 3,
+          reps: 12,
+          instructions: 'Lean slightly forward, lower until shoulders below elbows, push up, keep core tight to target chest.',
+          videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=420'
+        },
+        {
+          name: 'Cable Crossover',
+          sets: 3,
+          reps: 12,
+          instructions: 'Set cables above shoulders, pull handles down and across body, squeeze chest at peak, return with stretch.',
+          videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=510'
+        }
+      ],
+      back: [
+        {
+          name: 'Deadlift',
+          sets: 4,
+          reps: 12,
+          instructions: 'Feet hip-width, grip barbell outside knees, keep back flat, pull up, thrust hips forward, lower with control.',
+          videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=120'
+        },
+        {
+          name: 'Weighted Pull-Up',
+          sets: 3,
+          reps: 12,
+          instructions: 'Use overhand grip, hang fully, pull up until chin over bar, lower slowly to maximize lat activation.',
+          videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=330'
+        },
+        {
+          name: 'Barbell Row',
+          sets: 3,
+          reps: 12,
+          instructions: 'Hinge at hips, grip barbell, pull to lower ribs, keep back parallel to ground, avoid jerking.',
+          videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=240'
+        },
+        {
+          name: 'Seated Cable Row',
+          sets: 3,
+          reps: 12,
+          instructions: 'Sit upright, pull cable handle to mid-torso, retract scapulae, keep elbows close, return with stretch.',
+          videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=450'
+        }
+      ],
+      shoulders: [
+        {
+          name: 'Overhead Barbell Press',
+          sets: 4,
+          reps: 12,
+          instructions: 'Stand or sit, grip barbell at shoulder-width, press overhead, lock out arms, lower to collarbone level.',
+          videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=150'
+        },
+        {
+          name: 'Dumbbell Lateral Raise',
+          sets: 4,
+          reps: 12,
+          instructions: 'Stand with dumbbells at sides, raise to shoulder height, slight bend in elbows, lower with control.',
+          videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=270'
+        },
+        {
+          name: 'Rear Delt Fly (Dumbbell)',
+          sets: 3,
+          reps: 12,
+          instructions: 'Bend forward, hold dumbbells, raise arms outward, squeeze rear delts, keep movement controlled.',
+          videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=390'
+        },
+        {
+          name: 'Face Pull',
+          sets: 3,
+          reps: 12,
+          instructions: 'Set cable at face height, pull rope to ears, elbows high, squeeze rear delts, avoid shrugging.',
+          videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=510'
+        }
+      ],
+      legs: [
+        {
+          name: 'Barbell Squat',
+          sets: 4,
+          reps: 12,
+          instructions: 'Bar on upper traps, feet shoulder-width, squat to knee depth, keep chest up, drive through heels.',
+          videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=180'
+        },
+        {
+          name: 'Romanian Deadlift',
+          sets: 3,
+          reps: 12,
+          instructions: 'Hold barbell, hinge at hips, lower to mid-shin, keep back flat, pull up using hamstrings.',
+          videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=300'
+        },
+        {
+          name: 'Bulgarian Split Squat',
+          sets: 3,
+          reps: 12,
+          instructions: 'Rear foot elevated, front foot forward, lower until front thigh parallel, push through front heel.',
+          videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=420'
+        },
+        {
+          name: 'Leg Press',
+          sets: 3,
+          reps: 12,
+          instructions: 'Feet shoulder-width on platform, lower until knees at 90°, push through heels, avoid locking knees.',
+          videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=540'
+        }
+      ]
+    };
+
+    const DEFAULT = {
+      bicepTricep: {
+        name: 'Bicep & Tricep',
+        exercises: [
+          {
+            name: 'Barbell Curl',
+            sets: 3,
+            reps: 12,
+            instructions: 'Stand with feet shoulder-width, grip barbell at shoulder-width, curl slowly keeping elbows tucked, pause at top, lower with control.',
+            videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=171'
+          },
+          {
+            name: 'Close-Grip Bench Press',
+            sets: 4,
+            reps: 12,
+            instructions: 'Lie on bench, grip barbell narrower than shoulder-width, lower to mid-chest, press up powerfully, keep elbows close to body.',
+            videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=614'
+          },
+          {
+            name: 'Dumbbell Preacher Curl',
+            sets: 4,
+            reps: 12,
+            instructions: 'Sit at preacher bench, arm fully extended, curl dumbbell up, squeeze at top, lower slowly to full stretch.',
+            videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=265'
+          }
+        ]
+      },
+      chest: {
+        name: 'Chest',
+        exercises: [
+          {
+            name: 'Barbell Bench Press',
+            sets: 4,
+            reps: 12,
+            instructions: 'Lie flat, grip barbell slightly wider than shoulders, lower to mid-chest, press up, keep scapulae retracted.',
+            videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=180'
+          },
+          {
+            name: 'Incline Dumbbell Press',
+            sets: 3,
+            reps: 12,
+            instructions: 'Set bench to 30-45°, hold dumbbells, press up while keeping slight arch in back, lower to chest level.',
+            videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=300'
+          }
+        ]
+      },
+      back: {
+        name: 'Back',
+        exercises: [
+          {
+            name: 'Deadlift',
+            sets: 4,
+            reps: 12,
+            instructions: 'Feet hip-width, grip barbell outside knees, keep back flat, pull up, thrust hips forward, lower with control.',
+            videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=120'
+          },
+          {
+            name: 'Weighted Pull-Up',
+            sets: 3,
+            reps: 12,
+            instructions: 'Use overhand grip, hang fully, pull up until chin over bar, lower slowly to maximize lat activation.',
+            videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=330'
+          }
+        ]
+      },
+      shoulders: {
+        name: 'Shoulders',
+        exercises: [
+          {
+            name: 'Overhead Barbell Press',
+            sets: 4,
+            reps: 12,
+            instructions: 'Stand or sit, grip barbell at shoulder-width, press overhead, lock out arms, lower to collarbone level.',
+            videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=150'
+          },
+          {
+            name: 'Dumbbell Lateral Raise',
+            sets: 4,
+            reps: 12,
+            instructions: 'Stand with dumbbells at sides, raise to shoulder height, slight bend in elbows, lower with control.',
+            videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=270'
+          }
+        ]
+      },
+      legs: {
+        name: 'Legs',
+        exercises: [
+          {
+            name: 'Barbell Squat',
+            sets: 4,
+            reps: 12,
+            instructions: 'Bar on upper traps, feet shoulder-width, squat to knee depth, keep chest up, drive through heels.',
+            videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=180'
+          },
+          {
+            name: 'Romanian Deadlift',
+            sets: 3,
+            reps: 12,
+            instructions: 'Hold barbell, hinge at hips, lower to mid-shin, keep back flat, pull up using hamstrings.',
+            videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=300'
+          }
+        ]
+      }
+    };
+
+    function App() {
+      const [user, setUser] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [templates, setTemplates] = useState(DEFAULT);
+      const [workouts, setWorkouts] = useState([]);
+      const [view, setView] = useState('home');
+      const [editing, setEditing] = useState(null);
+      const [workout, setWorkout] = useState(null);
+      const [editingWorkout, setEditingWorkout] = useState(null);
+      const [showTimeEdit, setShowTimeEdit] = useState(false);
+      const [resumingWorkout, setResumingWorkout] = useState(false);
+      const [timer, setTimer] = useState({ time: 90, left: 0, active: false });
+      const [showNew, setShowNew] = useState(false);
+      const [newEx, setNewEx] = useState({ name: '', sets: 3, reps: 10, instructions: '', videoUrl: '' });
+      const [editEx, setEditEx] = useState(null);
+      const [video, setVideo] = useState(null);
+      const [videoOrientation, setVideoOrientation] = useState('landscape');
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [authMode, setAuthMode] = useState('login');
+
+      useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+          setUser(user);
+          setLoading(false);
+          if (user) loadData(user.uid);
+        });
+        return unsubscribe;
+      }, []);
+
+      const loadData = async (uid) => {
+        try {
+          const templatesDoc = await db.collection('users').doc(uid).collection('data').doc('templates').get();
+          if (templatesDoc.exists) {
+            setTemplates(templatesDoc.data().templates || DEFAULT);
+          }
+
+          const ninetyDaysAgo = new Date();
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+          
+          const workoutsSnapshot = await db.collection('users').doc(uid).collection('workouts')
+            .where('start', '>=', ninetyDaysAgo.toISOString())
+            .orderBy('start', 'desc')
+            .limit(100)
+            .get();
+          
+          const workoutsData = [];
+          workoutsSnapshot.forEach(doc => {
+            workoutsData.push({ id: doc.id, ...doc.data() });
+          });
+          setWorkouts(workoutsData);
+        } catch (error) {
+          console.error('Error loading:', error);
+        }
+      };
+
+      const saveTemplates = async (newTemplates) => {
+        if (!user) return;
+        try {
+          await db.collection('users').doc(user.uid).collection('data').doc('templates').set({
+            templates: newTemplates,
+            updated: new Date().toISOString()
+          });
+          setTemplates(newTemplates);
+        } catch (error) {
+          console.error('Error saving:', error);
+          alert('Error saving. Please try again.');
+        }
+      };
+
+      const saveWorkoutToDb = async (workoutData) => {
+        if (!user) return;
+        try {
+          await db.collection('users').doc(user.uid).collection('workouts').add({
+            ...workoutData,
+            created: new Date().toISOString()
+          });
+          loadData(user.uid);
+        } catch (error) {
+          console.error('Error saving workout:', error);
+          alert('Error saving workout.');
+        }
+      };
+
+      const saveWorkoutProgress = async (workoutData, workoutId = null) => {
+        if (!user) return;
+        try {
+          if (workoutId) {
+            await db.collection('users').doc(user.uid).collection('workouts').doc(workoutId).update({
+              ...workoutData,
+              updated: new Date().toISOString()
+            });
+          } else {
+            await db.collection('users').doc(user.uid).collection('workouts').add({
+              ...workoutData,
+              inProgress: true,
+              created: new Date().toISOString()
+            });
+          }
+          loadData(user.uid);
+        } catch (error) {
+          console.error('Error saving progress:', error);
+        }
+      };
+
+      const updateWorkoutInDb = async (workoutId, workoutData) => {
+        if (!user) return;
+        try {
+          await db.collection('users').doc(user.uid).collection('workouts').doc(workoutId).update({
+            ...workoutData,
+            updated: new Date().toISOString()
+          });
+          loadData(user.uid);
+        } catch (error) {
+          console.error('Error updating workout:', error);
+          alert('Error updating workout.');
+        }
+      };
+
+      const deleteWorkout = async (workoutId) => {
+        if (!user || !confirm('Delete this workout?')) return;
+        try {
+          await db.collection('users').doc(user.uid).collection('workouts').doc(workoutId).delete();
+          setWorkouts(workouts.filter(w => w.id !== workoutId));
+        } catch (error) {
+          console.error('Error deleting:', error);
+        }
+      };
+
+      const resumeWorkout = (workoutData) => {
+        setWorkout({
+          name: workoutData.name,
+          start: workoutData.start,
+          resumedFrom: workoutData.id,
+          exercises: workoutData.exercises.map(ex => ({
+            ...ex,
+            done: ex.done || Array(ex.sets).fill(false),
+            weights: ex.weights || Array(ex.sets).fill(''),
+            reps2: ex.reps2 || Array(ex.sets).fill('')
+          }))
+        });
+        setResumingWorkout(true);
+        setView('workout');
+      };
+
+      const getLastWorkout = (exerciseName) => {
+        for (let w of workouts) {
+          const ex = w.exercises?.find(e => e.name === exerciseName);
+          if (ex && ex.weights && ex.weights.some(w => w)) {
+            return ex;
+          }
+        }
+        return null;
+      };
+
+      const handleAuth = async (e) => {
+        e.preventDefault();
+        try {
+          if (authMode === 'login') {
+            await auth.signInWithEmailAndPassword(email, password);
+          } else {
+            await auth.createUserWithEmailAndPassword(email, password);
+          }
+          setEmail('');
+          setPassword('');
+        } catch (error) {
+          alert(error.message);
+        }
+      };
+
+      const handleLogout = async () => {
+        await auth.signOut();
+        setTemplates(DEFAULT);
+        setWorkouts([]);
+      };
+
+      useEffect(() => {
+        if (!timer.active || timer.left <= 0) return;
+        const id = setInterval(() => {
+          setTimer(t => {
+            if (t.left <= 1) {
+              playSound('complete');
+              return { ...t, left: 0, active: false };
+            }
+            return { ...t, left: t.left - 1 };
+          });
+        }, 1000);
+        return () => clearInterval(id);
+      }, [timer.active, timer.left]);
+
+      const playSound = (type = 'complete') => {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const now = ctx.currentTime;
+          
+          if (type === 'complete') {
+            for (let i = 0; i < 5; i++) {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = i % 2 === 0 ? 880 : 1046;
+              osc.type = 'square';
+              const start = now + (i * 0.2);
+              gain.gain.setValueAtTime(0.3, start);
+              gain.gain.exponentialRampToValueAtTime(0.01, start + 0.15);
+              osc.start(start);
+              osc.stop(start + 0.15);
+            }
+            setTimeout(() => alert('⏰ REST DONE!'), 1000);
+          } else if (type === 'ding') {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 800;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.6, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+            osc.start(now);
+            osc.stop(now + 0.4);
+            
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.frequency.value = 1200;
+            osc2.type = 'sine';
+            gain2.gain.setValueAtTime(0.4, now);
+            gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+            osc2.start(now);
+            osc2.stop(now + 0.35);
+          }
+        } catch (e) {
+          console.error('Audio error:', e);
+        }
+      };
+
+      const getVideoId = (url) => {
+        if (!url) return null;
+        url = String(url).trim().replace('https://', '').replace('http://', '');
+
+        if (url.includes('youtube.com/embed/')) {
+          const [path, query] = url.split('?');
+          const id = path.split('embed/')[1].split('/')[0].split('&')[0];
+          const params = query ? `?${query}` : '';
+          return { type: 'youtube', id, params };
+        }
+
+        if (url.includes('youtube.com/watch') && url.includes('v=')) {
+          const id = url.split('v=')[1].split('&')[0].split('#')[0];
+          return { type: 'youtube', id, params: '' };
+        }
+
+        if (url.includes('youtu.be/')) {
+          const id = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
+          return { type: 'youtube', id, params: '' };
+        }
+
+        if (url.includes('vimeo.com')) {
+          const match = url.match(/vimeo\.com\/(\d+)/);
+          if (match) return { type: 'vimeo', id: match[1], params: '' };
+        }
+
+        if (url.includes('drive.google.com')) {
+          const match = url.match(/\/d\/([^\/]+)/);
+          if (match) return { type: 'drive', id: match[1], params: '' };
+        }
+
+        return null;
+      };
+
+      if (loading) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <div className="text-white text-2xl">Loading...</div>
+          </div>
+        );
+      }
+
+      if (!user) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Dumbbell className="w-12 h-12 text-indigo-600" />
+                <h1 className="text-3xl font-bold text-gray-800">Workout Tracker</h1>
+              </div>
+              
+              <form onSubmit={handleAuth} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="your@email.com" />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength="6" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="••••••" />
+                </div>
+                
+                <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-semibold">
+                  {authMode === 'login' ? 'Sign In' : 'Sign Up'}
+                </button>
+              </form>
+              
+              <div className="mt-4 text-center">
+                <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-indigo-600 hover:text-indigo-800 text-sm">
+                  {authMode === 'login' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
+                </button>
+              </div>
+              
+              <div className="mt-6 text-xs text-gray-500 text-center space-y-1">
+                <p>✅ Sync across all devices</p>
+                <p>✅ Track last workout data</p>
+                <p>✅ Week-by-week progress</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (view === 'progress') {
+        const getWeeklyData = () => {
+          const weeks = {};
+          workouts.forEach(w => {
+            const date = new Date(w.start);
+            const weekStart = new Date(date);
+            weekStart.setDate(date.getDate() - date.getDay());
+            const weekKey = weekStart.toISOString().split('T')[0];
+            
+            if (!weeks[weekKey]) {
+              weeks[weekKey] = { workouts: 0, sets: 0, exercises: {} };
+            }
+            weeks[weekKey].workouts++;
+            w.exercises.forEach(ex => {
+              const completedSets = ex.done?.filter(Boolean).length || 0;
+              weeks[weekKey].sets += completedSets;
+              
+              if (!weeks[weekKey].exercises[ex.name]) {
+                weeks[weekKey].exercises[ex.name] = [];
+              }
+              
+              ex.weights?.forEach((weight, idx) => {
+                if (weight && ex.done[idx]) {
+                  weeks[weekKey].exercises[ex.name].push({
+                    weight: parseFloat(weight),
+                    reps: parseInt(ex.reps2?.[idx] || ex.reps)
+                  });
+                }
+              });
+            });
+          });
+          
+          return Object.entries(weeks).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 12);
+        };
+
+        const weeklyData = getWeeklyData();
+
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+            <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                  <BarChart className="w-8 h-8 text-indigo-600" />
+                  Progress Dashboard
+                </h1>
+                <button onClick={() => setView('home')} className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+                  Back
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {weeklyData.map(([weekKey, data]) => {
+                  const weekDate = new Date(weekKey);
+                  const weekEnd = new Date(weekDate);
+                  weekEnd.setDate(weekDate.getDate() + 6);
+                  
+                  return (
+                    <div key={weekKey} className="border-2 border-indigo-200 rounded-lg p-4 bg-indigo-50">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-bold text-gray-800">
+                          Week of {weekDate.toLocaleDateString()} - {weekEnd.toLocaleDateString()}
+                        </h3>
+                        <div className="flex gap-4 text-sm">
+                          <span className="bg-indigo-600 text-white px-3 py-1 rounded">{data.workouts} workouts</span>
+                          <span className="bg-purple-600 text-white px-3 py-1 rounded">{data.sets} sets</span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {Object.entries(data.exercises).map(([exName, sets]) => {
+                          const maxWeight = Math.max(...sets.map(s => s.weight));
+                          const totalReps = sets.reduce((sum, s) => sum + s.reps, 0);
+                          const avgWeight = (sets.reduce((sum, s) => sum + s.weight, 0) / sets.length).toFixed(1);
+                          
+                          return (
+                            <div key={exName} className="bg-white rounded p-3 border border-gray-200">
+                              <div className="font-semibold text-sm text-gray-800 mb-1">{exName}</div>
+                              <div className="text-xs text-gray-600 space-y-1">
+                                <div>Max: <span className="font-bold text-indigo-600">{maxWeight} lbs</span></div>
+                                <div>Avg: <span className="font-bold">{avgWeight} lbs</span></div>
+                                <div>Total Reps: <span className="font-bold">{totalReps}</span></div>
+                                <div>Sets: <span className="font-bold">{sets.length}</span></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {weeklyData.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <BarChart className="w-16 h-16 mx-auto mb-3 opacity-50" />
+                  <p>No workout data yet. Start logging workouts to see progress!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      if (editingWorkout) {
+        const workoutDuration = () => {
+          const start = new Date(editingWorkout.start);
+          const end = editingWorkout.end ? new Date(editingWorkout.end) : new Date();
+          const diffMs = end - start;
+          const diffMins = Math.floor(diffMs / 60000);
+          return `${diffMins} minutes`;
+        };
+
+        return (
+          <div className="min-h-screen bg-slate-900 p-4">
+            <div className="max-w-4xl mx-auto bg-slate-800 rounded-lg p-6">
+              <div className="flex justify-between mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Edit Workout: {editingWorkout.name}</h1>
+                  <div className="text-sm text-gray-400 mt-1">Duration: {workoutDuration()}</div>
+                </div>
+                <button onClick={() => setEditingWorkout(null)} className="text-gray-400 text-2xl">✕</button>
+              </div>
+
+              <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                <h3 className="text-white font-semibold mb-3">Workout Times</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">Start Time</label>
+                    <input
+                      type="datetime-local"
+                      value={new Date(editingWorkout.start).toISOString().slice(0, 16)}
+                      onChange={(e) => setEditingWorkout({ ...editingWorkout, start: new Date(e.target.value).toISOString() })}
+                      className="w-full px-3 py-2 bg-slate-600 text-white rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-300 text-sm block mb-1">End Time</label>
+                    <input
+                      type="datetime-local"
+                      value={editingWorkout.end ? new Date(editingWorkout.end).toISOString().slice(0, 16) : ''}
+                      onChange={(e) => setEditingWorkout({ ...editingWorkout, end: new Date(e.target.value).toISOString() })}
+                      className="w-full px-3 py-2 bg-slate-600 text-white rounded"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {editingWorkout.exercises.map((ex, i) => (
+                <div key={i} className="bg-slate-700 rounded-lg p-4 mb-3">
+                  <h3 className="text-white font-semibold mb-3">{ex.name}</h3>
+                  {Array.from({ length: ex.sets }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-2 mb-2 flex-wrap">
+                      <input
+                        type="checkbox"
+                        checked={ex.done?.[j] || false}
+                        onChange={(e) => {
+                          const updated = { ...editingWorkout };
+                          if (!updated.exercises[i].done) updated.exercises[i].done = Array(ex.sets).fill(false);
+                          updated.exercises[i].done[j] = e.target.checked;
+                          setEditingWorkout(updated);
+                        }}
+                        className="w-5 h-5"
+                      />
+                      <span className="text-white text-sm w-12">Set {j + 1}</span>
+                      <input
+                        type="number"
+                        placeholder="Weight"
+                        value={ex.weights?.[j] || ''}
+                        onChange={(e) => {
+                          const updated = { ...editingWorkout };
+                          if (!updated.exercises[i].weights) updated.exercises[i].weights = Array(ex.sets).fill('');
+                          updated.exercises[i].weights[j] = e.target.value;
+                          setEditingWorkout(updated);
+                        }}
+                        className="w-20 px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                      />
+                      <span className="text-gray-300 text-xs">lbs ×</span>
+                      <input
+                        type="number"
+                        placeholder="Reps"
+                        value={ex.reps2?.[j] || ''}
+                        onChange={(e) => {
+                          const updated = { ...editingWorkout };
+                          if (!updated.exercises[i].reps2) updated.exercises[i].reps2 = Array(ex.sets).fill('');
+                          updated.exercises[i].reps2[j] = e.target.value;
+                          setEditingWorkout(updated);
+                        }}
+                        className="w-16 px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                      />
+                      <span className="text-gray-300 text-xs">reps</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const { id, ...data } = editingWorkout;
+                    updateWorkoutInDb(id, data);
+                    setEditingWorkout(null);
+                  }}
+                  className="flex-1 bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700"
+                >
+                  💾 Save Changes
+                </button>
+                <button onClick={() => setEditingWorkout(null)} className="flex-1 bg-slate-600 text-white py-3 rounded hover:bg-slate-500">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (view === 'edit' && editing) {
+        return (
+          <div className="min-h-screen bg-slate-900 p-4">
+            <div className="max-w-4xl mx-auto bg-slate-800 rounded-lg p-6">
+              <div className="flex justify-between mb-6">
+                <h1 className="text-2xl font-bold text-white">Edit {editing.name}</h1>
+                <button onClick={() => { setEditing(null); setEditEx(null); setShowNew(false); setView('home'); }} className="text-gray-400 text-2xl">✕</button>
+              </div>
+
+              {showNew && (
+                <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                  <h3 className="text-white font-semibold mb-3">New Exercise</h3>
+                  <input type="text" placeholder="Exercise name" value={newEx.name} onChange={(e) => setNewEx({ ...newEx, name: e.target.value })} className="w-full px-3 py-2 bg-slate-600 text-white rounded mb-2" />
+                  <div className="flex gap-2 mb-2">
+                    <input type="number" placeholder="Sets" value={newEx.sets} onChange={(e) => setNewEx({ ...newEx, sets: +e.target.value })} className="w-20 px-3 py-2 bg-slate-600 text-white rounded" />
+                    <input type="number" placeholder="Reps" value={newEx.reps} onChange={(e) => setNewEx({ ...newEx, reps: +e.target.value })} className="w-20 px-3 py-2 bg-slate-600 text-white rounded" />
+                  </div>
+                  <textarea placeholder="Instructions (optional)" value={newEx.instructions} onChange={(e) => setNewEx({ ...newEx, instructions: e.target.value })} className="w-full px-3 py-2 bg-slate-600 text-white rounded mb-2 h-20" />
+                  <input type="url" placeholder="Video URL (YouTube, Vimeo, Google Drive)" value={newEx.videoUrl} onChange={(e) => setNewEx({ ...newEx, videoUrl: e.target.value })} className="w-full px-3 py-2 bg-slate-600 text-white rounded mb-2" />
+                  <div className="flex gap-2">
+                    <button onClick={() => { if (newEx.name) { setEditing({ ...editing, exercises: [...editing.exercises, newEx] }); setNewEx({ name: '', sets: 3, reps: 10, instructions: '', videoUrl: '' }); setShowNew(false); } }} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Add</button>
+                    <button onClick={() => { setShowNew(false); setNewEx({ name: '', sets: 3, reps: 10, instructions: '', videoUrl: '' }); }} className="flex-1 bg-slate-600 text-white py-2 rounded hover:bg-slate-500">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {editEx && (
+                <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                  <h3 className="text-white font-semibold mb-3">Edit Exercise</h3>
+                  <input type="text" value={editEx.name} onChange={(e) => setEditEx({ ...editEx, name: e.target.value })} className="w-full px-3 py-2 bg-slate-600 text-white rounded mb-2" />
+                  <div className="flex gap-2 mb-2">
+                    <input type="number" value={editEx.sets} onChange={(e) => setEditEx({ ...editEx, sets: +e.target.value })} className="w-20 px-3 py-2 bg-slate-600 text-white rounded" />
+                    <input type="number" value={editEx.reps} onChange={(e) => setEditEx({ ...editEx, reps: +e.target.value })} className="w-20 px-3 py-2 bg-slate-600 text-white rounded" />
+                  </div>
+                  <textarea placeholder="Instructions" value={editEx.instructions || ''} onChange={(e) => setEditEx({ ...editEx, instructions: e.target.value })} className="w-full px-3 py-2 bg-slate-600 text-white rounded mb-2 h-20" />
+                  <input type="url" placeholder="Video URL" value={editEx.videoUrl || ''} onChange={(e) => setEditEx({ ...editEx, videoUrl: e.target.value })} className="w-full px-3 py-2 bg-slate-600 text-white rounded mb-2" />
+                  <div className="flex gap-2">
+                    <button onClick={() => { const e = [...editing.exercises]; const { idx, ...ex } = editEx; e[idx] = ex; setEditing({ ...editing, exercises: e }); setEditEx(null); }} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Save</button>
+                    <button onClick={() => setEditEx(null)} className="flex-1 bg-slate-600 text-white py-2 rounded hover:bg-slate-500">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <div className="flex justify-between mb-3">
+                  <h3 className="text-white font-semibold">Exercises</h3>
+                  <button onClick={() => setShowNew(true)} className="bg-green-600 text-white px-3 py-1 rounded text-sm flex items-center gap-1 hover:bg-green-700"><Plus />New</button>
+                </div>
+                {editing.exercises.map((ex, i) => (
+                  <div key={i} className="bg-slate-700 rounded p-3 mb-2">
+                    <div className="flex justify-between">
+                      <div className="flex-1">
+                        <div className="text-white font-medium text-sm">{ex.name}</div>
+                        <div className="text-gray-400 text-xs">{ex.sets} × {ex.reps}</div>
+                        {ex.instructions && <div className="text-gray-400 text-xs mt-1">{ex.instructions.substring(0, 50)}...</div>}
+                        {ex.videoUrl && <div className="text-blue-400 text-xs mt-1">📹 Video</div>}
+                      </div>
+                      <div className="flex gap-2 ml-2">
+                        <button onClick={() => setEditEx({ ...ex, idx: i })} className="text-blue-400 hover:text-blue-300"><Edit2 /></button>
+                        <button onClick={() => setEditing({ ...editing, exercises: editing.exercises.filter((_, j) => j !== i) })} className="text-red-400 hover:text-red-300"><Trash2 /></button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {editing.available && (
+                <div className="mb-4">
+                  <h3 className="text-white font-semibold mb-2">Add from Library</h3>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {editing.available.map((ex, i) => (
+                      <button key={i} onClick={() => setEditing({ ...editing, exercises: [...editing.exercises, { ...ex}] })} className="w-full bg-slate-700 hover:bg-slate-600 rounded p-2 flex justify-between text-sm transition">
+                        <span className="text-white">{ex.name}</span>
+                        <span className="text-gray-400">{ex.sets}×{ex.reps}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={() => { const newTemplates = { ...templates, [editing.key]: { name: editing.name, exercises: editing.exercises } }; saveTemplates(newTemplates); setEditing(null); setView('home'); }} className="flex-1 bg-green-600 text-white py-3 rounded font-semibold hover:bg-green-700">💾 Save to Cloud</button>
+                <button onClick={() => { setEditing(null); setView('home'); }} className="flex-1 bg-slate-600 text-white py-3 rounded hover:bg-slate-500">Cancel</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (view === 'workout' && workout) {
+        const vid = video ? getVideoId(video) : null;
+        const workoutDuration = () => {
+          const start = new Date(workout.start);
+          const now = new Date();
+          const diffMs = now - start;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffSecs = Math.floor((diffMs % 60000) / 1000);
+          return `${diffMins}:${diffSecs.toString().padStart(2, '0')}`;
+        };
+        
+        return (
+          <div className="min-h-screen bg-slate-900 p-4">
+            {video && (
+              <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4" onClick={() => setVideo(null)}>
+                <div className={`${videoOrientation === 'portrait' ? 'w-full max-w-md' : 'w-full max-w-4xl'}`} onClick={(e) => e.stopPropagation()}>
+                  <div className="bg-slate-800 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="text-white font-semibold">Video Tutorial</div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setVideoOrientation(videoOrientation === 'portrait' ? 'landscape' : 'portrait')}
+                          className="bg-slate-600 text-white px-3 py-1 rounded text-sm hover:bg-slate-500"
+                        >
+                          {videoOrientation === 'portrait' ? '📱 Portrait' : '🖥️ Landscape'}
+                        </button>
+                        <button onClick={() => setVideo(null)} className="text-white text-2xl hover:text-gray-300">✕</button>
+                      </div>
+                    </div>
+                    
+                    {vid ? (
+                      <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ paddingBottom: videoOrientation === 'portrait' ? '177.78%' : '56.25%' }}>
+                        {vid.type === 'youtube' && <iframe key={vid.id} src={`https://www.youtube.com/embed/${vid.id}${vid.params}`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen={true} title="Video" />}
+                        {vid.type === 'vimeo' && <iframe key={vid.id} src={`https://player.vimeo.com/video/${vid.id}`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen={true} title="Video" />}
+                        {vid.type === 'drive' && <iframe key={vid.id} src={`https://drive.google.com/file/d/${vid.id}/preview`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="autoplay" allowFullScreen={true} title="Video" />}
+                      </div>
+                    ) : (
+                      <div className="bg-slate-700 rounded-lg p-8 text-center text-white">Could not load video</div>
+                    )}
+                    
+                    <div className="mt-2 text-xs text-gray-400 text-center">
+                      Click the button above to switch between portrait and landscape mode
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="max-w-4xl mx-auto bg-slate-800 rounded-lg p-6">
+              <div className="flex justify-between mb-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-white">{workout.name}</h1>
+                  <div className="text-sm text-gray-400 mt-1">
+                    Duration: <span className="text-green-400 font-semibold">{workoutDuration()}</span>
+                    {resumingWorkout && <span className="ml-2 text-yellow-400">🔄 Resumed</span>}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowTimeEdit(!showTimeEdit)} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                    ⏱️ Edit Time
+                  </button>
+                  <button onClick={() => { setWorkout(null); setResumingWorkout(false); setView('home'); }} className="text-gray-400 hover:text-white text-2xl">✕</button>
+                </div>
+              </div>
+
+              {showTimeEdit && (
+                <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                  <h3 className="text-white font-semibold mb-3">Override Workout Times</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-gray-300 text-sm block mb-1">Start Time</label>
+                      <input
+                        type="datetime-local"
+                        value={new Date(workout.start).toISOString().slice(0, 16)}
+                        onChange={(e) => setWorkout({ ...workout, start: new Date(e.target.value).toISOString() })}
+                        className="w-full px-3 py-2 bg-slate-600 text-white rounded"
+                      />
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      Current duration: {workoutDuration()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                <h3 className="text-white font-semibold mb-2 flex items-center gap-2"><Clock />Rest Timer</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <input type="number" value={timer.time} onChange={(e) => setTimer({ ...timer, time: +e.target.value })} disabled={timer.active} className="w-20 px-2 py-1 bg-slate-600 text-white rounded" />
+                  <span className="text-gray-300 text-sm">seconds</span>
+                  <button onClick={() => playSound('ding')} className="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700">
+                    🔔 Test Sound
+                  </button>
+                </div>
+                <div className="text-4xl font-bold text-white text-center mb-2">{Math.floor(timer.left / 60)}:{(timer.left % 60).toString().padStart(2, '0')}</div>
+                <div className="flex gap-2">
+                  <button onClick={() => timer.active ? setTimer({ ...timer, active: false }) : setTimer({ ...timer, left: timer.time, active: true })} className="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">{timer.active ? 'Pause' : 'Start'}</button>
+                  <button onClick={() => setTimer({ ...timer, left: timer.time, active: false })} className="bg-slate-600 text-white px-3 py-2 rounded hover:bg-slate-500"><RotateCcw /></button>
+                </div>
+              </div>
+
+              {workout.exercises.map((ex, i) => {
+                const lastWorkout = getLastWorkout(ex.name);
+                
+                return (
+                  <div key={i} className="bg-slate-700 rounded-lg p-4 mb-3">
+                    <h3 className="text-white font-semibold mb-2">{ex.name}</h3>
+                    
+                    {lastWorkout && (
+                      <div className="bg-blue-900 bg-opacity-50 border border-blue-500 rounded p-2 mb-3 text-xs">
+                        <div className="text-blue-300 font-semibold mb-1">📊 Last Workout:</div>
+                        <div className="text-blue-200 flex gap-4 flex-wrap">
+                          {lastWorkout.weights.map((w, idx) => w && lastWorkout.done[idx] ? (
+                            <span key={idx}>Set {idx + 1}: {w} lbs × {lastWorkout.reps2?.[idx] || lastWorkout.reps} reps</span>
+                          ) : null)}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {ex.instructions && (
+                      <div className="bg-slate-600 rounded p-3 mb-2">
+                        <div className="text-yellow-400 text-xs font-semibold mb-1">📝 INSTRUCTIONS</div>
+                        <div className="text-gray-200 text-sm">{ex.instructions}</div>
+                      </div>
+                    )}
+                    {ex.videoUrl && (
+                      <button onClick={() => setVideo(ex.videoUrl)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded mb-3 text-sm font-semibold flex items-center gap-2">
+                        ▶️ Watch Video
+                      </button>
+                    )}
+                    {Array.from({ length: ex.sets }).map((_, j) => (
+                      <div key={j} className="flex items-center gap-2 mb-2 flex-wrap">
+                        <button onClick={() => { 
+                          const w = { ...workout }; 
+                          const wasCompleted = w.exercises[i].done[j];
+                          w.exercises[i].done[j] = !wasCompleted; 
+                          setWorkout(w); 
+                          if (!wasCompleted) {
+                            playSound('ding');
+                            setTimer({ ...timer, left: timer.time, active: true });
+                          }
+                        }} className={`w-9 h-9 rounded flex items-center justify-center font-bold border-2 ${ex.done[j] ? 'bg-green-600 border-green-600 text-white' : 'bg-slate-600 border-slate-500 text-gray-400'}`}>
+                          {ex.done[j] ? '✓' : ''}
+                        </button>
+                        <span className="text-white text-sm w-12">Set {j + 1}</span>
+                        <input type="number" placeholder="Wt" value={ex.weights[j]} onChange={(e) => { const w = { ...workout }; w.exercises[i].weights[j] = e.target.value; setWorkout(w); }} className="w-16 px-2 py-1 bg-slate-600 text-white rounded text-sm" />
+                        <span className="text-gray-300 text-xs">lbs ×</span>
+                        <input type="number" placeholder={ex.reps} value={ex.reps2[j]} onChange={(e) => { const w = { ...workout }; w.exercises[i].reps2[j] = e.target.value; setWorkout(w); }} className="w-14 px-2 py-1 bg-slate-600 text-white rounded text-sm" />
+                        <span className="text-gray-300 text-xs">reps</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              <button onClick={() => { 
+                const completedWorkout = { ...workout, end: new Date().toISOString(), inProgress: false, completed: true };
+                if (workout.resumedFrom) {
+                  updateWorkoutInDb(workout.resumedFrom, completedWorkout);
+                } else {
+                  saveWorkoutToDb(completedWorkout);
+                }
+                setWorkout(null); 
+                setResumingWorkout(false); 
+                setView('home'); 
+              }} className="w-full bg-green-600 text-white py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-green-700">
+                <Save />💾 Complete Workout
+              </button>
+              
+              <button onClick={async () => { await saveWorkoutProgress({ ...workout, end: new Date().toISOString() }, workout.resumedFrom); setWorkout(null); setResumingWorkout(false); setView('home'); }} className="w-full mt-2 bg-yellow-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2 hover:bg-yellow-700">
+                💾 Save Progress & Exit
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      const stats = {
+        totalWorkouts: workouts.length,
+        totalSets: workouts.reduce((s, w) => s + w.exercises.reduce((t, e) => t + e.done.filter(Boolean).length, 0), 0),
+        avgPerWeek: (workouts.length / 13).toFixed(1)
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+          <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <Dumbbell className="w-8 h-8 text-indigo-600" />
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">90-Day Tracker</h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-600">{user.email}</span>
+                <button onClick={handleLogout} className="text-red-600 hover:text-red-700" title="Logout">
+                  <LogOut />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 text-sm">
+              ☁️ All data synced to cloud • Accessible on all your devices
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-indigo-500 rounded-lg p-4 text-white">
+                <div className="flex items-center gap-2 mb-1"><Calendar /><span className="text-sm">Workouts</span></div>
+                <div className="text-3xl font-bold">{stats.totalWorkouts}</div>
+              </div>
+              <div className="bg-purple-500 rounded-lg p-4 text-white">
+                <div className="flex items-center gap-2 mb-1"><TrendingUp /><span className="text-sm">Sets</span></div>
+                <div className="text-3xl font-bold">{stats.totalSets}</div>
+              </div>
+              <div className="bg-pink-500 rounded-lg p-4 text-white">
+                <div className="flex items-center gap-2 mb-1"><Clock /><span className="text-sm">Avg/Week</span></div>
+                <div className="text-3xl font-bold">{stats.avgPerWeek}</div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <button onClick={() => setView('progress')} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700">
+                <BarChart />View Progress Dashboard
+              </button>
+            </div>
+
+            <h2 className="text-2xl font-bold mb-4">Templates</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {Object.entries(templates).map(([k, t]) => (
+                <div key={k} className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
+                  <h3 className="text-lg font-bold mb-1">{t.name}</h3>
+                  <div className="text-sm text-gray-600 mb-3">{t.exercises.length} exercises</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setWorkout({ name: t.name, start: new Date().toISOString(), exercises: t.exercises.map(e => ({ ...e, done: Array(e.sets).fill(false), weights: Array(e.sets).fill(''), reps2: Array(e.sets).fill('') })) }); setView('workout'); }} className="flex-1 bg-indigo-600 text-white py-2 rounded flex items-center justify-center gap-1 hover:bg-indigo-700"><Play />Start</button>
+                    <button onClick={() => { setEditing({ key: k, ...t, available: EXERCISES[k] }); setView('edit'); }} className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700"><Edit2 /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h2 className="text-2xl font-bold mb-4">Recent Workouts (Last 90 Days)</h2>
+            {workouts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Dumbbell className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No workouts yet. Start one above!</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {workouts.slice(0, 20).map((w, idx) => {
+                  const duration = w.end && w.start ? Math.floor((new Date(w.end) - new Date(w.start)) / 60000) : null;
+                  const isMostRecent = idx === 0;
+                  const isInProgress = w.inProgress;
+                  const isCompleted = w.completed;
+                  
+                  return (
+                    <div key={w.id} className={`rounded-lg p-4 flex justify-between items-center hover:shadow-md transition ${isInProgress ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'}`}>
+                      <div className="flex-1">
+                        <div className="font-bold text-gray-800 flex items-center gap-2">
+                          {w.name}
+                          {isInProgress && <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded">IN PROGRESS</span>}
+                          {isMostRecent && !isInProgress && !isCompleted && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded">LATEST</span>}
+                          {isCompleted && <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">✓ COMPLETED</span>}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {new Date(w.start).toLocaleDateString()} • {w.exercises.reduce((s, e) => s + e.done.filter(Boolean).length, 0)} sets
+                          {duration && <span className="ml-2">• {duration} min</span>}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {isMostRecent && !isCompleted && (
+                          <button 
+                            onClick={() => resumeWorkout(w)} 
+                            className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700 flex items-center gap-1"
+                            title="Resume this workout"
+                          >
+                            <Play />Resume
+                          </button>
+                        )}
+                        <button onClick={() => setEditingWorkout(w)} className="text-blue-600 hover:text-blue-700" title="Edit">
+                          <Edit2 />
+                        </button>
+                        <button onClick={() => deleteWorkout(w.id)} className="text-red-500 hover:text-red-700" title="Delete">
+                          <Trash2 />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
