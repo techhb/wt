@@ -13,6 +13,37 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  
+  <style>
+    .google-btn {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      color: #3c4043;
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.25px;
+      padding: 0;
+      position: relative;
+      text-align: center;
+      transition: background-color 0.218s, border-color 0.218s, box-shadow 0.218s;
+      user-select: none;
+      cursor: pointer;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .google-btn:hover {
+      background-color: #f7f8f8;
+      border-color: #d2d3d4;
+    }
+    .google-btn:active {
+      background-color: #ecedee;
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
@@ -346,6 +377,8 @@
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
       const [authMode, setAuthMode] = useState('login');
+      const [showNewTemplate, setShowNewTemplate] = useState(false);
+      const [newTemplate, setNewTemplate] = useState({ name: '', exercises: [] });
 
       useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -394,6 +427,26 @@
           console.error('Error saving:', error);
           alert('Error saving. Please try again.');
         }
+      };
+
+      const deleteTemplate = async (templateKey) => {
+        if (!user || !confirm('Delete this template?')) return;
+        try {
+          const newTemplates = { ...templates };
+          delete newTemplates[templateKey];
+          await saveTemplates(newTemplates);
+        } catch (error) {
+          console.error('Error deleting:', error);
+          alert('Error deleting template.');
+        }
+      };
+
+      const getAllExercises = () => {
+        const allExercises = [];
+        Object.values(EXERCISES).forEach(categoryExercises => {
+          allExercises.push(...categoryExercises);
+        });
+        return allExercises;
       };
 
       const saveWorkoutToDb = async (workoutData) => {
@@ -492,6 +545,16 @@
           setEmail('');
           setPassword('');
         } catch (error) {
+          alert(error.message);
+        }
+      };
+
+      const handleGoogleSignIn = async () => {
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          await auth.signInWithPopup(provider);
+        } catch (error) {
+          console.error('Google sign-in error:', error);
           alert(error.message);
         }
       };
@@ -630,6 +693,27 @@
                   {authMode === 'login' ? 'Sign In' : 'Sign Up'}
                 </button>
               </form>
+              
+              <div className="mt-4">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                  </div>
+                </div>
+                
+                <button onClick={handleGoogleSignIn} className="w-full mt-4 google-btn">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  <span>Sign in with Google</span>
+                </button>
+              </div>
               
               <div className="mt-4 text-center">
                 <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-indigo-600 hover:text-indigo-800 text-sm">
@@ -946,6 +1030,136 @@
                 <button onClick={() => { const newTemplates = { ...templates, [editing.key]: { name: editing.name, exercises: editing.exercises } }; saveTemplates(newTemplates); setEditing(null); setView('home'); }} className="flex-1 bg-green-600 text-white py-3 rounded font-semibold hover:bg-green-700">💾 Save to Cloud</button>
                 <button onClick={() => { setEditing(null); setView('home'); }} className="flex-1 bg-slate-600 text-white py-3 rounded hover:bg-slate-500">Cancel</button>
               </div>
+
+              {!editing.isDefault && (
+                <button onClick={() => { deleteTemplate(editing.key); setEditing(null); setView('home'); }} className="w-full mt-2 bg-red-600 text-white py-2 rounded hover:bg-red-700">
+                  🗑️ Delete Template
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      if (view === 'createTemplate') {
+        const allExercises = getAllExercises();
+        
+        return (
+          <div className="min-h-screen bg-slate-900 p-4">
+            <div className="max-w-4xl mx-auto bg-slate-800 rounded-lg p-6">
+              <div className="flex justify-between mb-6">
+                <h1 className="text-2xl font-bold text-white">Create New Template</h1>
+                <button onClick={() => { setShowNewTemplate(false); setNewTemplate({ name: '', exercises: [] }); setView('home'); }} className="text-gray-400 text-2xl">✕</button>
+              </div>
+
+              <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                <label className="text-white font-semibold block mb-2">Template Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Upper Body, Full Body, etc." 
+                  value={newTemplate.name} 
+                  onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })} 
+                  className="w-full px-3 py-2 bg-slate-600 text-white rounded"
+                />
+              </div>
+
+              <div className="mb-4">
+                <h3 className="text-white font-semibold mb-3">Selected Exercises ({newTemplate.exercises.length})</h3>
+                {newTemplate.exercises.length === 0 ? (
+                  <div className="bg-slate-700 rounded p-4 text-gray-400 text-center text-sm">
+                    No exercises selected. Choose from the library below.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {newTemplate.exercises.map((ex, i) => (
+                      <div key={i} className="bg-slate-700 rounded p-3 flex justify-between items-center">
+                        <div className="flex-1">
+                          <div className="text-white font-medium text-sm">{ex.name}</div>
+                          <div className="text-gray-400 text-xs">{ex.sets} × {ex.reps}</div>
+                        </div>
+                        <button 
+                          onClick={() => setNewTemplate({ ...newTemplate, exercises: newTemplate.exercises.filter((_, j) => j !== i) })} 
+                          className="text-red-400 hover:text-red-300 ml-2"
+                        >
+                          <Trash2 />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <h3 className="text-white font-semibold mb-2">Exercise Library</h3>
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {Object.entries(EXERCISES).map(([category, exercises]) => (
+                    <div key={category}>
+                      <div className="text-indigo-400 text-xs font-semibold uppercase mt-3 mb-1 px-2">
+                        {category === 'bicepTricep' ? 'Bicep & Tricep' : category}
+                      </div>
+                      {exercises.map((ex, i) => {
+                        const isSelected = newTemplate.exercises.some(e => e.name === ex.name);
+                        return (
+                          <button 
+                            key={i} 
+                            onClick={() => {
+                              if (isSelected) {
+                                setNewTemplate({ ...newTemplate, exercises: newTemplate.exercises.filter(e => e.name !== ex.name) });
+                              } else {
+                                setNewTemplate({ ...newTemplate, exercises: [...newTemplate.exercises, { ...ex }] });
+                              }
+                            }}
+                            className={`w-full rounded p-2 flex justify-between text-sm transition ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
+                          >
+                            <span>{isSelected && '✓ '}{ex.name}</span>
+                            <span className="text-gray-400">{ex.sets}×{ex.reps}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    if (!newTemplate.name.trim()) {
+                      alert('Please enter a template name');
+                      return;
+                    }
+                    if (newTemplate.exercises.length === 0) {
+                      alert('Please select at least one exercise');
+                      return;
+                    }
+                    const templateKey = newTemplate.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    const newTemplates = { 
+                      ...templates, 
+                      [templateKey]: { 
+                        name: newTemplate.name, 
+                        exercises: newTemplate.exercises,
+                        isCustom: true
+                      } 
+                    };
+                    saveTemplates(newTemplates);
+                    setNewTemplate({ name: '', exercises: [] });
+                    setView('home');
+                  }}
+                  disabled={!newTemplate.name.trim() || newTemplate.exercises.length === 0}
+                  className="flex-1 bg-green-600 text-white py-3 rounded font-semibold hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                >
+                  💾 Create Template
+                </button>
+                <button 
+                  onClick={() => { 
+                    setNewTemplate({ name: '', exercises: [] }); 
+                    setView('home'); 
+                  }} 
+                  className="flex-1 bg-slate-600 text-white py-3 rounded hover:bg-slate-500"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -1176,15 +1390,33 @@
             </div>
 
             <h2 className="text-2xl font-bold mb-4">Templates</h2>
+            <div className="mb-4">
+              <button 
+                onClick={() => setView('createTemplate')} 
+                className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:from-green-600 hover:to-teal-600"
+              >
+                <Plus />Create New Template
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               {Object.entries(templates).map(([k, t]) => (
                 <div key={k} className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
-                  <h3 className="text-lg font-bold mb-1">{t.name}</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-bold">{t.name}</h3>
+                    {t.isCustom && <span className="text-xs bg-teal-500 text-white px-2 py-1 rounded">CUSTOM</span>}
+                  </div>
                   <div className="text-sm text-gray-600 mb-3">{t.exercises.length} exercises</div>
                   <div className="flex gap-2">
                     <button onClick={() => { setWorkout({ name: t.name, start: new Date().toISOString(), exercises: t.exercises.map(e => ({ ...e, done: Array(e.sets).fill(false), weights: Array(e.sets).fill(''), reps2: Array(e.sets).fill('') })) }); setView('workout'); }} className="flex-1 bg-indigo-600 text-white py-2 rounded flex items-center justify-center gap-1 hover:bg-indigo-700"><Play />Start</button>
-                    <button onClick={() => { setEditing({ key: k, ...t, available: EXERCISES[k] }); setView('edit'); }} className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700"><Edit2 /></button>
+                    <button onClick={() => { 
+                      const availableExercises = t.isCustom ? getAllExercises() : (EXERCISES[k] || getAllExercises());
+                      setEditing({ key: k, ...t, available: availableExercises, isDefault: !t.isCustom }); 
+                      setView('edit'); 
+                    }} className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700"><Edit2 /></button>
                   </div>
+                </div>
+              ))}
+            </div>
                 </div>
               ))}
             </div>
