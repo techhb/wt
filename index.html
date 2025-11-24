@@ -13,6 +13,29 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  
+  <style>
+    .google-btn {
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      color: #3c4043;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 0;
+      transition: background-color 0.218s, border-color 0.218s;
+      cursor: pointer;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .google-btn:hover {
+      background-color: #f7f8f8;
+      border-color: #d2d3d4;
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
@@ -20,7 +43,6 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
     
-    // ⚠️⚠️⚠️ FIREBASE CONFIG ⚠️⚠️⚠️
     const firebaseConfig = {
       apiKey: "AIzaSyDflVWpWRaM79otPlFdgY9Jj2_TT8coP8c",
       authDomain: "workout-tracker-cf45f.firebaseapp.com",
@@ -36,7 +58,6 @@
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // Icons
     const Icon = ({ children, className = "w-5 h-5" }) => (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
     );
@@ -53,105 +74,88 @@
     const Plus = (p) => <Icon {...p} className="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
     const LogOut = (p) => <Icon {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Icon>;
     const BarChart = (p) => <Icon {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></Icon>;
-    const History = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
 
     const EXERCISES = {
       bicepTricep: [
-        { name: 'Barbell Curl', sets: 3, reps: 10 },
-        { name: 'Incline Dumbbell Curl', sets: 3, reps: 12 },
-        { name: 'Close Grip Bench Press', sets: 3, reps: 8 }
+        { name: 'Barbell Curl', sets: 3, reps: 12, instructions: 'Stand with feet shoulder-width, grip barbell at shoulder-width, curl slowly keeping elbows tucked, pause at top, lower with control.', videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=171' },
+        { name: 'Close-Grip Bench Press', sets: 4, reps: 12, instructions: 'Lie on bench, grip barbell narrower than shoulder-width, lower to mid-chest, press up powerfully, keep elbows close to body.', videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=614' },
+        { name: 'Weighted Chin-Up (Supinated Grip)', sets: 3, reps: 12, instructions: 'Use supinated grip, hang with full stretch, pull up until chin over bar, lower slowly to avoid swinging.', videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=330' },
+        { name: 'Dumbbell Preacher Curl', sets: 4, reps: 12, instructions: 'Sit at preacher bench, arm fully extended, curl dumbbell up, squeeze at top, lower slowly to full stretch.', videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=265' },
+        { name: 'Overhead Dumbbell Triceps Extension', sets: 3, reps: 12, instructions: 'Hold dumbbell overhead with both hands, lower behind head keeping elbows high, extend arms fully, avoid flaring elbows.', videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=524' },
+        { name: 'EZ Bar Reverse Curl', sets: 3, reps: 12, instructions: 'Grip EZ bar overhand, curl up keeping wrists straight, pause at top, lower slowly to target brachioradialis.', videoUrl: 'https://www.youtube.com/embed/GNO4OtYoCYk?start=489' }
       ],
       chest: [
-        { name: 'Barbell Bench Press', sets: 4, reps: 8 },
-        { name: 'Incline Dumbbell Press', sets: 3, reps: 10 },
-        { name: 'Weighted Dips', sets: 3, reps: 10 }
+        { name: 'Barbell Bench Press', sets: 4, reps: 12, instructions: 'Lie flat, grip barbell slightly wider than shoulders, lower to mid-chest, press up, keep scapulae retracted.', videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=180' },
+        { name: 'Incline Dumbbell Press', sets: 3, reps: 12, instructions: 'Set bench to 30-45°, hold dumbbells, press up while keeping slight arch in back, lower to chest level.', videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=300' },
+        { name: 'Weighted Dips', sets: 3, reps: 12, instructions: 'Lean slightly forward, lower until shoulders below elbows, push up, keep core tight to target chest.', videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=420' },
+        { name: 'Cable Crossover', sets: 3, reps: 12, instructions: 'Set cables above shoulders, pull handles down and across body, squeeze chest at peak, return with stretch.', videoUrl: 'https://www.youtube.com/embed/OZb-1z3gTeg?start=510' }
       ],
       back: [
-        { name: 'Deadlift', sets: 4, reps: 6 },
-        { name: 'Pull-ups', sets: 3, reps: 8 },
-        { name: 'Barbell Row', sets: 3, reps: 10 }
+        { name: 'Deadlift', sets: 4, reps: 12, instructions: 'Feet hip-width, grip barbell outside knees, keep back flat, pull up, thrust hips forward, lower with control.', videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=120' },
+        { name: 'Weighted Pull-Up', sets: 3, reps: 12, instructions: 'Use overhand grip, hang fully, pull up until chin over bar, lower slowly to maximize lat activation.', videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=330' },
+        { name: 'Barbell Row', sets: 3, reps: 12, instructions: 'Hinge at hips, grip barbell, pull to lower ribs, keep back parallel to ground, avoid jerking.', videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=240' },
+        { name: 'Seated Cable Row', sets: 3, reps: 12, instructions: 'Sit upright, pull cable handle to mid-torso, retract scapulae, keep elbows close, return with stretch.', videoUrl: 'https://www.youtube.com/embed/eGo4IYlbE5g?start=450' }
       ],
       shoulders: [
-        { name: 'Overhead Press', sets: 4, reps: 8 },
-        { name: 'Lateral Raise', sets: 4, reps: 12 }
+        { name: 'Overhead Barbell Press', sets: 4, reps: 12, instructions: 'Stand or sit, grip barbell at shoulder-width, press overhead, lock out arms, lower to collarbone level.', videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=150' },
+        { name: 'Dumbbell Lateral Raise', sets: 4, reps: 12, instructions: 'Stand with dumbbells at sides, raise to shoulder height, slight bend in elbows, lower with control.', videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=270' },
+        { name: 'Rear Delt Fly (Dumbbell)', sets: 3, reps: 12, instructions: 'Bend forward, hold dumbbells, raise arms outward, squeeze rear delts, keep movement controlled.', videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=390' },
+        { name: 'Face Pull', sets: 3, reps: 12, instructions: 'Set cable at face height, pull rope to ears, elbows high, squeeze rear delts, avoid shrugging.', videoUrl: 'https://www.youtube.com/embed/TLsT097v1dc?start=510' }
       ],
       legs: [
-        { name: 'Squat', sets: 4, reps: 8 },
-        { name: 'Romanian Deadlift', sets: 3, reps: 10 }
+        { name: 'Barbell Squat', sets: 4, reps: 12, instructions: 'Bar on upper traps, feet shoulder-width, squat to knee depth, keep chest up, drive through heels.', videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=180' },
+        { name: 'Romanian Deadlift', sets: 3, reps: 12, instructions: 'Hold barbell, hinge at hips, lower to mid-shin, keep back flat, pull up using hamstrings.', videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=300' },
+        { name: 'Bulgarian Split Squat', sets: 3, reps: 12, instructions: 'Rear foot elevated, front foot forward, lower until front thigh parallel, push through front heel.', videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=420' },
+        { name: 'Leg Press', sets: 3, reps: 12, instructions: 'Feet shoulder-width on platform, lower until knees at 90°, push through heels, avoid locking knees.', videoUrl: 'https://www.youtube.com/embed/ZOQUNh3sK1M?start=540' }
       ]
     };
 
     const DEFAULT = {
-      bicepTricep: { name: 'Bicep & Tricep', exercises: [{ name: 'Barbell Curl', sets: 3, reps: 10, instructions: '', videoUrl: '' }] },
-      chest: { name: 'Chest', exercises: [{ name: 'Bench Press', sets: 4, reps: 8, instructions: '', videoUrl: '' }] },
-      back: { name: 'Back', exercises: [{ name: 'Deadlift', sets: 4, reps: 6, instructions: '', videoUrl: '' }] },
-      shoulders: { name: 'Shoulders', exercises: [{ name: 'Overhead Press', sets: 4, reps: 8, instructions: '', videoUrl: '' }] },
-      legs: { name: 'Legs', exercises: [{ name: 'Squat', sets: 4, reps: 8, instructions: '', videoUrl: '' }] }
+      bicepTricep: { name: 'Bicep & Tricep', exercises: [EXERCISES.bicepTricep[0], EXERCISES.bicepTricep[1], EXERCISES.bicepTricep[3]] },
+      chest: { name: 'Chest', exercises: [EXERCISES.chest[0], EXERCISES.chest[1]] },
+      back: { name: 'Back', exercises: [EXERCISES.back[0], EXERCISES.back[1]] },
+      shoulders: { name: 'Shoulders', exercises: [EXERCISES.shoulders[0], EXERCISES.shoulders[1]] },
+      legs: { name: 'Legs', exercises: [EXERCISES.legs[0], EXERCISES.legs[1]] }
     };
 
     function App() {
       const [user, setUser] = useState(null);
       const [loading, setLoading] = useState(true);
-      const [isAdmin, setIsAdmin] = useState(false);
       const [templates, setTemplates] = useState(DEFAULT);
-      const [exerciseLibrary, setExerciseLibrary] = useState(EXERCISES);
       const [workouts, setWorkouts] = useState([]);
       const [view, setView] = useState('home');
       const [editing, setEditing] = useState(null);
       const [workout, setWorkout] = useState(null);
       const [editingWorkout, setEditingWorkout] = useState(null);
       const [showTimeEdit, setShowTimeEdit] = useState(false);
-      const [showAddExercise, setShowAddExercise] = useState(false);
       const [resumingWorkout, setResumingWorkout] = useState(false);
       const [timer, setTimer] = useState({ time: 90, left: 0, active: false });
       const [showNew, setShowNew] = useState(false);
       const [newEx, setNewEx] = useState({ name: '', sets: 3, reps: 10, instructions: '', videoUrl: '' });
       const [editEx, setEditEx] = useState(null);
       const [video, setVideo] = useState(null);
-      const [videoOrientation, setVideoOrientation] = useState('landscape'); // 'landscape' or 'portrait'
+      const [videoOrientation, setVideoOrientation] = useState('landscape');
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
       const [authMode, setAuthMode] = useState('login');
+      const [newTemplate, setNewTemplate] = useState({ name: '', exercises: [] });
 
       useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
           setUser(user);
           setLoading(false);
-          if (user) {
-            // Check if user is admin
-            const adminDoc = await db.collection('admins').doc(user.uid).get();
-            setIsAdmin(adminDoc.exists);
-            
-            await loadData(user.uid);
-          }
+          if (user) loadData(user.uid);
         });
         return unsubscribe;
       }, []);
 
       const loadData = async (uid) => {
         try {
-          // Load global exercise library
-          const exerciseLibDoc = await db.collection('global').doc('exerciseLibrary').get();
-          if (exerciseLibDoc.exists) {
-            setExerciseLibrary(exerciseLibDoc.data().exercises || EXERCISES);
+          const templatesDoc = await db.collection('users').doc(uid).collection('data').doc('templates').get();
+          if (templatesDoc.exists) {
+            setTemplates(templatesDoc.data().templates || DEFAULT);
           }
 
-          // Load global templates
-          const globalTemplatesDoc = await db.collection('global').doc('templates').get();
-          let loadedTemplates = DEFAULT;
-          if (globalTemplatesDoc.exists) {
-            loadedTemplates = globalTemplatesDoc.data().templates || DEFAULT;
-          }
-
-          // Load user's custom templates (override global)
-          const userTemplatesDoc = await db.collection('users').doc(uid).collection('data').doc('templates').get();
-          if (userTemplatesDoc.exists && userTemplatesDoc.data().templates) {
-            loadedTemplates = { ...loadedTemplates, ...userTemplatesDoc.data().templates };
-          }
-          
-          setTemplates(loadedTemplates);
-
-          // Load workouts
           const ninetyDaysAgo = new Date();
           ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
           
@@ -185,6 +189,26 @@
         }
       };
 
+      const deleteTemplate = async (templateKey) => {
+        if (!user || !confirm('Delete this template?')) return;
+        try {
+          const newTemplates = { ...templates };
+          delete newTemplates[templateKey];
+          await saveTemplates(newTemplates);
+        } catch (error) {
+          console.error('Error deleting:', error);
+          alert('Error deleting template.');
+        }
+      };
+
+      const getAllExercises = () => {
+        const allExercises = [];
+        Object.values(EXERCISES).forEach(categoryExercises => {
+          allExercises.push(...categoryExercises);
+        });
+        return allExercises;
+      };
+
       const saveWorkoutToDb = async (workoutData) => {
         if (!user) return;
         try {
@@ -203,13 +227,11 @@
         if (!user) return;
         try {
           if (workoutId) {
-            // Update existing workout
             await db.collection('users').doc(user.uid).collection('workouts').doc(workoutId).update({
               ...workoutData,
               updated: new Date().toISOString()
             });
           } else {
-            // Create new in-progress workout
             await db.collection('users').doc(user.uid).collection('workouts').add({
               ...workoutData,
               inProgress: true,
@@ -247,14 +269,12 @@
       };
 
       const resumeWorkout = (workoutData) => {
-        // Load the workout with all existing progress
         setWorkout({
           name: workoutData.name,
           start: workoutData.start,
           resumedFrom: workoutData.id,
           exercises: workoutData.exercises.map(ex => ({
             ...ex,
-            // Ensure arrays exist
             done: ex.done || Array(ex.sets).fill(false),
             weights: ex.weights || Array(ex.sets).fill(''),
             reps2: ex.reps2 || Array(ex.sets).fill('')
@@ -262,16 +282,6 @@
         });
         setResumingWorkout(true);
         setView('workout');
-      };
-
-      const handleNavigateAway = async () => {
-        if (workout && !workout.end) {
-          // Auto-save workout in progress
-          const confirmed = confirm('Save workout progress before leaving?');
-          if (confirmed) {
-            await saveWorkoutProgress({ ...workout, end: new Date().toISOString() }, workout.resumedFrom);
-          }
-        }
       };
 
       const getLastWorkout = (exerciseName) => {
@@ -299,11 +309,20 @@
         }
       };
 
+      const handleGoogleSignIn = async () => {
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          await auth.signInWithPopup(provider);
+        } catch (error) {
+          console.error('Google sign-in error:', error);
+          alert(error.message);
+        }
+      };
+
       const handleLogout = async () => {
         await auth.signOut();
         setTemplates(DEFAULT);
         setWorkouts([]);
-        setIsAdmin(false);
       };
 
       useEffect(() => {
@@ -326,7 +345,6 @@
           const now = ctx.currentTime;
           
           if (type === 'complete') {
-            // Rest timer complete - multiple beeps
             for (let i = 0; i < 5; i++) {
               const osc = ctx.createOscillator();
               const gain = ctx.createGain();
@@ -342,7 +360,6 @@
             }
             setTimeout(() => alert('⏰ REST DONE!'), 1000);
           } else if (type === 'ding') {
-            // Set completed - single pleasant ding
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
@@ -354,7 +371,6 @@
             osc.start(now);
             osc.stop(now + 0.4);
             
-            // Add a higher harmonic for a bell-like sound
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.connect(gain2);
@@ -365,43 +381,43 @@
             gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
             osc2.start(now);
             osc2.stop(now + 0.35);
-            
-            console.log('Ding sound played!');
           }
         } catch (e) {
           console.error('Audio error:', e);
-          // Fallback to system beep
-          if (type === 'ding') {
-            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURQJUP/3jw8AAA==');
-            audio.play().catch(() => {});
-          }
         }
       };
 
       const getVideoId = (url) => {
         if (!url) return null;
         url = String(url).trim().replace('https://', '').replace('http://', '');
-        
-        if (url.includes('vimeo.com')) {
-          const match = url.match(/vimeo\.com\/(\d+)/);
-          if (match) return { type: 'vimeo', id: match[1] };
+
+        if (url.includes('youtube.com/embed/')) {
+          const [path, query] = url.split('?');
+          const id = path.split('embed/')[1].split('/')[0].split('&')[0];
+          const params = query ? `?${query}` : '';
+          return { type: 'youtube', id, params };
         }
-        
-        if (url.includes('drive.google.com')) {
-          const match = url.match(/\/d\/([^\/]+)/);
-          if (match) return { type: 'drive', id: match[1] };
-        }
-        
-        if (url.includes('youtu.be/')) {
-          const id = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
-          return { type: 'youtube', id };
-        }
-        
+
         if (url.includes('youtube.com/watch') && url.includes('v=')) {
           const id = url.split('v=')[1].split('&')[0].split('#')[0];
-          return { type: 'youtube', id };
+          return { type: 'youtube', id, params: '' };
         }
-        
+
+        if (url.includes('youtu.be/')) {
+          const id = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
+          return { type: 'youtube', id, params: '' };
+        }
+
+        if (url.includes('vimeo.com')) {
+          const match = url.match(/vimeo\.com\/(\d+)/);
+          if (match) return { type: 'vimeo', id: match[1], params: '' };
+        }
+
+        if (url.includes('drive.google.com')) {
+          const match = url.match(/\/d\/([^\/]+)/);
+          if (match) return { type: 'drive', id: match[1], params: '' };
+        }
+
         return null;
       };
 
@@ -438,6 +454,27 @@
                 </button>
               </form>
               
+              <div className="mt-4">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                  </div>
+                </div>
+                
+                <button onClick={handleGoogleSignIn} className="w-full mt-4 google-btn">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  <span>Sign in with Google</span>
+                </button>
+              </div>
+              
               <div className="mt-4 text-center">
                 <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-indigo-600 hover:text-indigo-800 text-sm">
                   {authMode === 'login' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
@@ -454,239 +491,6 @@
         );
       }
 
-      // ADMIN PANEL
-      if (view === 'admin' && isAdmin) {
-        const handleExerciseCSV = async (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            try {
-              const csv = event.target.result;
-              const lines = csv.split('\n').filter(line => line.trim());
-              const exercises = {};
-
-              // Expected format: category,name,sets,reps,instructions,videoUrl
-              for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(',').map(p => p.trim().replace(/^"|"$/g, ''));
-                if (parts.length < 4) continue;
-
-                const [category, name, sets, reps, instructions = '', videoUrl = ''] = parts;
-                
-                if (!exercises[category]) exercises[category] = [];
-                exercises[category].push({
-                  name,
-                  sets: parseInt(sets) || 3,
-                  reps: parseInt(reps) || 10,
-                  instructions: instructions || '',
-                  videoUrl: videoUrl || ''
-                });
-              }
-
-              await db.collection('global').doc('exerciseLibrary').set({
-                exercises,
-                updated: new Date().toISOString()
-              });
-
-              alert('Exercise library updated successfully!');
-              loadData(user.uid);
-            } catch (error) {
-              console.error('CSV parse error:', error);
-              alert('Error parsing CSV: ' + error.message);
-            }
-          };
-          reader.readAsText(file);
-        };
-
-        const handleTemplateCSV = async (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            try {
-              const csv = event.target.result;
-              const lines = csv.split('\n').filter(line => line.trim());
-              const templates = {};
-
-              // Expected format: templateKey,templateName,exerciseName,sets,reps,instructions,videoUrl
-              for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(',').map(p => p.trim().replace(/^"|"$/g, ''));
-                if (parts.length < 5) continue;
-
-                const [key, name, exName, sets, reps, instructions = '', videoUrl = ''] = parts;
-                
-                if (!templates[key]) {
-                  templates[key] = { name, exercises: [] };
-                }
-                
-                templates[key].exercises.push({
-                  name: exName,
-                  sets: parseInt(sets) || 3,
-                  reps: parseInt(reps) || 10,
-                  instructions: instructions || '',
-                  videoUrl: videoUrl || ''
-                });
-              }
-
-              await db.collection('global').doc('templates').set({
-                templates,
-                updated: new Date().toISOString()
-              });
-
-              alert('Templates updated successfully!');
-              loadData(user.uid);
-            } catch (error) {
-              console.error('CSV parse error:', error);
-              alert('Error parsing CSV: ' + error.message);
-            }
-          };
-          reader.readAsText(file);
-        };
-
-        const downloadExerciseCSV = () => {
-          let csv = 'category,name,sets,reps,instructions,videoUrl\n';
-          Object.entries(exerciseLibrary).forEach(([category, exercises]) => {
-            exercises.forEach(ex => {
-              const instructions = (ex.instructions || '').replace(/"/g, '""');
-              const videoUrl = (ex.videoUrl || '').replace(/"/g, '""');
-              csv += `${category},"${ex.name}",${ex.sets},${ex.reps},"${instructions}","${videoUrl}"\n`;
-            });
-          });
-          
-          const blob = new Blob([csv], { type: 'text/csv' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'exercise-library.csv';
-          a.click();
-        };
-
-        const downloadTemplateCSV = () => {
-          let csv = 'templateKey,templateName,exerciseName,sets,reps,instructions,videoUrl\n';
-          Object.entries(templates).forEach(([key, template]) => {
-            template.exercises.forEach(ex => {
-              const templateName = (template.name || '').replace(/"/g, '""');
-              const exerciseName = (ex.name || '').replace(/"/g, '""');
-              const instructions = (ex.instructions || '').replace(/"/g, '""');
-              const videoUrl = (ex.videoUrl || '').replace(/"/g, '""');
-              csv += `${key},"${templateName}","${exerciseName}",${ex.sets},${ex.reps},"${instructions}","${videoUrl}"\n`;
-            });
-          });
-          
-          const blob = new Blob([csv], { type: 'text/csv' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'templates.csv';
-          a.click();
-          URL.revokeObjectURL(url);
-        };
-
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
-            <div className="max-w-6xl mx-auto">
-              <div className="bg-white rounded-lg shadow-2xl p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h1 className="text-3xl font-bold text-gray-800">🔐 Admin Panel</h1>
-                  <button onClick={() => setView('home')} className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-                    Back to App
-                  </button>
-                </div>
-
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
-                  ⚠️ Admin access - Changes affect all users
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Exercise Library Management */}
-                  <div className="border-2 border-indigo-200 rounded-lg p-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">📚 Exercise Library</h2>
-                    
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">Current exercises: {Object.values(exerciseLibrary).flat().length}</p>
-                      <button onClick={downloadExerciseCSV} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 mb-3">
-                        ⬇️ Download Current Library (CSV)
-                      </button>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Upload Exercise Library CSV
-                      </label>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleExerciseCSV}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      />
-                    </div>
-
-                    <div className="bg-gray-50 rounded p-3 text-xs">
-                      <p className="font-semibold mb-1">CSV Format:</p>
-                      <code className="block text-xs">
-                        category,name,sets,reps,instructions,videoUrl<br/>
-                        chest,Bench Press,4,8,"Keep back flat",https://youtu.be/xxx
-                      </code>
-                    </div>
-                  </div>
-
-                  {/* Template Management */}
-                  <div className="border-2 border-purple-200 rounded-lg p-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">📋 Templates</h2>
-                    
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">Current templates: {Object.keys(templates).length}</p>
-                      <button onClick={downloadTemplateCSV} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 mb-3">
-                        ⬇️ Download Current Templates (CSV)
-                      </button>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Upload Templates CSV
-                      </label>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleTemplateCSV}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      />
-                    </div>
-
-                    <div className="bg-gray-50 rounded p-3 text-xs">
-                      <p className="font-semibold mb-1">CSV Format:</p>
-                      <code className="block text-xs">
-                        templateKey,templateName,exerciseName,sets,reps,instructions,videoUrl<br/>
-                        chest,Chest Day,Bench Press,4,8,"",https://youtu.be/xxx
-                      </code>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 border-2 border-green-200 rounded-lg p-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">📊 Current Exercise Library</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                    {Object.entries(exerciseLibrary).map(([category, exercises]) => (
-                      <div key={category} className="bg-gray-50 rounded p-3">
-                        <h3 className="font-bold text-gray-800 mb-2 capitalize">{category}</h3>
-                        <ul className="text-sm text-gray-600 space-y-1">
-                          {exercises.map((ex, i) => (
-                            <li key={i}>• {ex.name} ({ex.sets}×{ex.reps})</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // PROGRESS DASHBOARD
       if (view === 'progress') {
         const getWeeklyData = () => {
           const weeks = {};
@@ -790,7 +594,6 @@
         );
       }
 
-      // EDIT WORKOUT VIEW
       if (editingWorkout) {
         const workoutDuration = () => {
           const start = new Date(editingWorkout.start);
@@ -903,7 +706,6 @@
         );
       }
 
-      // EDIT TEMPLATE VIEW
       if (view === 'edit' && editing) {
         return (
           <div className="min-h-screen bg-slate-900 p-4">
@@ -975,7 +777,7 @@
                   <h3 className="text-white font-semibold mb-2">Add from Library</h3>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {editing.available.map((ex, i) => (
-                      <button key={i} onClick={() => setEditing({ ...editing, exercises: [...editing.exercises, { ...ex, instructions: '', videoUrl: '' }] })} className="w-full bg-slate-700 hover:bg-slate-600 rounded p-2 flex justify-between text-sm transition">
+                      <button key={i} onClick={() => setEditing({ ...editing, exercises: [...editing.exercises, { ...ex}] })} className="w-full bg-slate-700 hover:bg-slate-600 rounded p-2 flex justify-between text-sm transition">
                         <span className="text-white">{ex.name}</span>
                         <span className="text-gray-400">{ex.sets}×{ex.reps}</span>
                       </button>
@@ -988,12 +790,139 @@
                 <button onClick={() => { const newTemplates = { ...templates, [editing.key]: { name: editing.name, exercises: editing.exercises } }; saveTemplates(newTemplates); setEditing(null); setView('home'); }} className="flex-1 bg-green-600 text-white py-3 rounded font-semibold hover:bg-green-700">💾 Save to Cloud</button>
                 <button onClick={() => { setEditing(null); setView('home'); }} className="flex-1 bg-slate-600 text-white py-3 rounded hover:bg-slate-500">Cancel</button>
               </div>
+
+              {!editing.isDefault && (
+                <button onClick={() => { deleteTemplate(editing.key); setEditing(null); setView('home'); }} className="w-full mt-2 bg-red-600 text-white py-2 rounded hover:bg-red-700">
+                  🗑️ Delete Template
+                </button>
+              )}
             </div>
           </div>
         );
       }
 
-      // WORKOUT VIEW
+      if (view === 'createTemplate') {
+        return (
+          <div className="min-h-screen bg-slate-900 p-4">
+            <div className="max-w-4xl mx-auto bg-slate-800 rounded-lg p-6">
+              <div className="flex justify-between mb-6">
+                <h1 className="text-2xl font-bold text-white">Create New Template</h1>
+                <button onClick={() => { setNewTemplate({ name: '', exercises: [] }); setView('home'); }} className="text-gray-400 text-2xl">✕</button>
+              </div>
+
+              <div className="bg-slate-700 rounded-lg p-4 mb-4">
+                <label className="text-white font-semibold block mb-2">Template Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Upper Body, Full Body, etc." 
+                  value={newTemplate.name} 
+                  onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })} 
+                  className="w-full px-3 py-2 bg-slate-600 text-white rounded"
+                />
+              </div>
+
+              <div className="mb-4">
+                <h3 className="text-white font-semibold mb-3">Selected Exercises ({newTemplate.exercises.length})</h3>
+                {newTemplate.exercises.length === 0 ? (
+                  <div className="bg-slate-700 rounded p-4 text-gray-400 text-center text-sm">
+                    No exercises selected. Choose from the library below.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {newTemplate.exercises.map((ex, i) => (
+                      <div key={i} className="bg-slate-700 rounded p-3 flex justify-between items-center">
+                        <div className="flex-1">
+                          <div className="text-white font-medium text-sm">{ex.name}</div>
+                          <div className="text-gray-400 text-xs">{ex.sets} × {ex.reps}</div>
+                        </div>
+                        <button 
+                          onClick={() => setNewTemplate({ ...newTemplate, exercises: newTemplate.exercises.filter((_, j) => j !== i) })} 
+                          className="text-red-400 hover:text-red-300 ml-2"
+                        >
+                          <Trash2 />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <h3 className="text-white font-semibold mb-2">Exercise Library</h3>
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {Object.entries(EXERCISES).map(([category, exercises]) => (
+                    <div key={category}>
+                      <div className="text-indigo-400 text-xs font-semibold uppercase mt-3 mb-1 px-2">
+                        {category === 'bicepTricep' ? 'Bicep & Tricep' : category}
+                      </div>
+                      {exercises.map((ex, i) => {
+                        const isSelected = newTemplate.exercises.some(e => e.name === ex.name);
+                        return (
+                          <button 
+                            key={i} 
+                            onClick={() => {
+                              if (isSelected) {
+                                setNewTemplate({ ...newTemplate, exercises: newTemplate.exercises.filter(e => e.name !== ex.name) });
+                              } else {
+                                setNewTemplate({ ...newTemplate, exercises: [...newTemplate.exercises, { ...ex }] });
+                              }
+                            }}
+                            className={`w-full rounded p-2 flex justify-between text-sm transition ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
+                          >
+                            <span>{isSelected && '✓ '}{ex.name}</span>
+                            <span className="text-gray-400">{ex.sets}×{ex.reps}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    if (!newTemplate.name.trim()) {
+                      alert('Please enter a template name');
+                      return;
+                    }
+                    if (newTemplate.exercises.length === 0) {
+                      alert('Please select at least one exercise');
+                      return;
+                    }
+                    const templateKey = newTemplate.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    const newTemplates = { 
+                      ...templates, 
+                      [templateKey]: { 
+                        name: newTemplate.name, 
+                        exercises: newTemplate.exercises,
+                        isCustom: true
+                      } 
+                    };
+                    saveTemplates(newTemplates);
+                    setNewTemplate({ name: '', exercises: [] });
+                    setView('home');
+                  }}
+                  disabled={!newTemplate.name.trim() || newTemplate.exercises.length === 0}
+                  className="flex-1 bg-green-600 text-white py-3 rounded font-semibold hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                >
+                  💾 Create Template
+                </button>
+                <button 
+                  onClick={() => { 
+                    setNewTemplate({ name: '', exercises: [] }); 
+                    setView('home'); 
+                  }} 
+                  className="flex-1 bg-slate-600 text-white py-3 rounded hover:bg-slate-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       if (view === 'workout' && workout) {
         const vid = video ? getVideoId(video) : null;
         const workoutDuration = () => {
@@ -1004,32 +933,6 @@
           const diffSecs = Math.floor((diffMs % 60000) / 1000);
           return `${diffMins}:${diffSecs.toString().padStart(2, '0')}`;
         };
-
-        const addExerciseToWorkout = (exercise) => {
-          const newExercise = {
-            ...exercise,
-            done: Array(exercise.sets).fill(false),
-            weights: Array(exercise.sets).fill(''),
-            reps2: Array(exercise.sets).fill('')
-          };
-          setWorkout({
-            ...workout,
-            exercises: [...workout.exercises, newExercise]
-          });
-          setShowAddExercise(false);
-        };
-
-        const removeExerciseFromWorkout = (index) => {
-          if (confirm('Remove this exercise from workout?')) {
-            setWorkout({
-              ...workout,
-              exercises: workout.exercises.filter((_, i) => i !== index)
-            });
-          }
-        };
-
-        // Get all available exercises across all categories
-        const allAvailableExercises = Object.values(exerciseLibrary).flat();
         
         return (
           <div className="min-h-screen bg-slate-900 p-4">
@@ -1052,7 +955,7 @@
                     
                     {vid ? (
                       <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ paddingBottom: videoOrientation === 'portrait' ? '177.78%' : '56.25%' }}>
-                        {vid.type === 'youtube' && <iframe key={vid.id} src={`https://www.youtube.com/embed/${vid.id}`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen={true} title="Video" />}
+                        {vid.type === 'youtube' && <iframe key={vid.id} src={`https://www.youtube.com/embed/${vid.id}${vid.params}`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen={true} title="Video" />}
                         {vid.type === 'vimeo' && <iframe key={vid.id} src={`https://player.vimeo.com/video/${vid.id}`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen={true} title="Video" />}
                         {vid.type === 'drive' && <iframe key={vid.id} src={`https://drive.google.com/file/d/${vid.id}/preview`} className="absolute inset-0 w-full h-full" style={{ border: 'none' }} allow="autoplay" allowFullScreen={true} title="Video" />}
                       </div>
@@ -1081,7 +984,7 @@
                   <button onClick={() => setShowTimeEdit(!showTimeEdit)} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
                     ⏱️ Edit Time
                   </button>
-                  <button onClick={async () => { await handleNavigateAway(); setWorkout(null); setResumingWorkout(false); setView('home'); }} className="text-gray-400 hover:text-white text-2xl">✕</button>
+                  <button onClick={() => { setWorkout(null); setResumingWorkout(false); setView('home'); }} className="text-gray-400 hover:text-white text-2xl">✕</button>
                 </div>
               </div>
 
@@ -1105,30 +1008,6 @@
                 </div>
               )}
 
-              {showAddExercise && (
-                <div className="bg-slate-700 rounded-lg p-4 mb-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-white font-semibold">Add Exercise to Workout</h3>
-                    <button onClick={() => setShowAddExercise(false)} className="text-gray-400 hover:text-white">✕</button>
-                  </div>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {allAvailableExercises.map((ex, i) => (
-                      <button
-                        key={i}
-                        onClick={() => addExerciseToWorkout(ex)}
-                        className="w-full bg-slate-600 hover:bg-slate-500 rounded p-3 flex justify-between items-center transition"
-                      >
-                        <div className="text-left">
-                          <div className="text-white font-medium text-sm">{ex.name}</div>
-                          <div className="text-gray-400 text-xs">{ex.sets} sets × {ex.reps} reps</div>
-                        </div>
-                        <Plus className="text-green-400 flex-shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="bg-slate-700 rounded-lg p-4 mb-4">
                 <h3 className="text-white font-semibold mb-2 flex items-center gap-2"><Clock />Rest Timer</h3>
                 <div className="flex items-center gap-2 mb-2">
@@ -1145,31 +1024,12 @@
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Exercises</h3>
-                <button
-                  onClick={() => setShowAddExercise(true)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />Add Exercise
-                </button>
-              </div>
-
               {workout.exercises.map((ex, i) => {
                 const lastWorkout = getLastWorkout(ex.name);
                 
                 return (
                   <div key={i} className="bg-slate-700 rounded-lg p-4 mb-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-white font-semibold">{ex.name}</h3>
-                      <button
-                        onClick={() => removeExerciseFromWorkout(i)}
-                        className="text-red-400 hover:text-red-300"
-                        title="Remove exercise"
-                      >
-                        <Trash2 />
-                      </button>
-                    </div>
+                    <h3 className="text-white font-semibold mb-2">{ex.name}</h3>
                     
                     {lastWorkout && (
                       <div className="bg-blue-900 bg-opacity-50 border border-blue-500 rounded p-2 mb-3 text-xs">
@@ -1218,7 +1078,17 @@
                 );
               })}
 
-              <button onClick={() => { saveWorkoutToDb({ ...workout, end: new Date().toISOString(), inProgress: false }); setWorkout(null); setResumingWorkout(false); setView('home'); }} className="w-full bg-green-600 text-white py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-green-700">
+              <button onClick={() => { 
+                const completedWorkout = { ...workout, end: new Date().toISOString(), inProgress: false, completed: true };
+                if (workout.resumedFrom) {
+                  updateWorkoutInDb(workout.resumedFrom, completedWorkout);
+                } else {
+                  saveWorkoutToDb(completedWorkout);
+                }
+                setWorkout(null); 
+                setResumingWorkout(false); 
+                setView('home'); 
+              }} className="w-full bg-green-600 text-white py-3 rounded font-bold flex items-center justify-center gap-2 hover:bg-green-700">
                 <Save />💾 Complete Workout
               </button>
               
@@ -1230,7 +1100,6 @@
         );
       }
 
-      // HOME VIEW
       const stats = {
         totalWorkouts: workouts.length,
         totalSets: workouts.reduce((s, w) => s + w.exercises.reduce((t, e) => t + e.done.filter(Boolean).length, 0), 0),
@@ -1246,11 +1115,6 @@
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800">90-Day Tracker</h1>
               </div>
               <div className="flex items-center gap-3">
-                {isAdmin && (
-                  <button onClick={() => setView('admin')} className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2">
-                    🔐 Admin
-                  </button>
-                )}
                 <span className="text-sm text-gray-600">{user.email}</span>
                 <button onClick={handleLogout} className="text-red-600 hover:text-red-700" title="Logout">
                   <LogOut />
@@ -1284,14 +1148,29 @@
             </div>
 
             <h2 className="text-2xl font-bold mb-4">Templates</h2>
+            <div className="mb-4">
+              <button 
+                onClick={() => setView('createTemplate')} 
+                className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:from-green-600 hover:to-teal-600"
+              >
+                <Plus />Create New Template
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               {Object.entries(templates).map(([k, t]) => (
                 <div key={k} className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
-                  <h3 className="text-lg font-bold mb-1">{t.name}</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-bold">{t.name}</h3>
+                    {t.isCustom && <span className="text-xs bg-teal-500 text-white px-2 py-1 rounded">CUSTOM</span>}
+                  </div>
                   <div className="text-sm text-gray-600 mb-3">{t.exercises.length} exercises</div>
                   <div className="flex gap-2">
                     <button onClick={() => { setWorkout({ name: t.name, start: new Date().toISOString(), exercises: t.exercises.map(e => ({ ...e, done: Array(e.sets).fill(false), weights: Array(e.sets).fill(''), reps2: Array(e.sets).fill('') })) }); setView('workout'); }} className="flex-1 bg-indigo-600 text-white py-2 rounded flex items-center justify-center gap-1 hover:bg-indigo-700"><Play />Start</button>
-                    <button onClick={() => { setEditing({ key: k, ...t, available: exerciseLibrary[k] || [] }); setView('edit'); }} className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700"><Edit2 /></button>
+                    <button onClick={() => { 
+                      const availableExercises = t.isCustom ? getAllExercises() : (EXERCISES[k] || getAllExercises());
+                      setEditing({ key: k, ...t, available: availableExercises, isDefault: !t.isCustom }); 
+                      setView('edit'); 
+                    }} className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700"><Edit2 /></button>
                   </div>
                 </div>
               ))}
@@ -1309,6 +1188,7 @@
                   const duration = w.end && w.start ? Math.floor((new Date(w.end) - new Date(w.start)) / 60000) : null;
                   const isMostRecent = idx === 0;
                   const isInProgress = w.inProgress;
+                  const isCompleted = w.completed;
                   
                   return (
                     <div key={w.id} className={`rounded-lg p-4 flex justify-between items-center hover:shadow-md transition ${isInProgress ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-50'}`}>
@@ -1316,7 +1196,8 @@
                         <div className="font-bold text-gray-800 flex items-center gap-2">
                           {w.name}
                           {isInProgress && <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded">IN PROGRESS</span>}
-                          {isMostRecent && !isInProgress && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded">LATEST</span>}
+                          {isMostRecent && !isInProgress && !isCompleted && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded">LATEST</span>}
+                          {isCompleted && <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">✓ COMPLETED</span>}
                         </div>
                         <div className="text-sm text-gray-600">
                           {new Date(w.start).toLocaleDateString()} • {w.exercises.reduce((s, e) => s + e.done.filter(Boolean).length, 0)} sets
@@ -1324,7 +1205,7 @@
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {isMostRecent && (
+                        {isMostRecent && !isCompleted && (
                           <button 
                             onClick={() => resumeWorkout(w)} 
                             className="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700 flex items-center gap-1"
