@@ -549,7 +549,7 @@
           let csv = 'category,name,sets,reps,instructions,videoUrl\n';
           Object.entries(exerciseLibrary).forEach(([category, exercises]) => {
             exercises.forEach(ex => {
-              csv += `${category},"${ex.name}",${ex.sets},${ex.reps},"${ex.instructions || ''}","${ex.videoUrl || '"}"\n`;
+              csv += `${category},"${ex.name}",${ex.sets},${ex.reps},"${ex.instructions || ''}","${ex.videoUrl || ''}"\n`;
             });
           });
           
