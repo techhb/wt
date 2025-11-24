@@ -549,7 +549,9 @@
           let csv = 'category,name,sets,reps,instructions,videoUrl\n';
           Object.entries(exerciseLibrary).forEach(([category, exercises]) => {
             exercises.forEach(ex => {
-              csv += `${category},"${ex.name}",${ex.sets},${ex.reps},"${ex.instructions || ''}","${ex.videoUrl || ''}"\n`;
+              const instructions = (ex.instructions || '').replace(/"/g, '""');
+              const videoUrl = (ex.videoUrl || '').replace(/"/g, '""');
+              csv += `${category},"${ex.name}",${ex.sets},${ex.reps},"${instructions}","${videoUrl}"\n`;
             });
           });
           
@@ -565,7 +567,11 @@
           let csv = 'templateKey,templateName,exerciseName,sets,reps,instructions,videoUrl\n';
           Object.entries(templates).forEach(([key, template]) => {
             template.exercises.forEach(ex => {
-              csv += `${key},"${template.name}","${ex.name}",${ex.sets},${ex.reps},"${ex.instructions || '"}","${ex.videoUrl || '"}"\n`;
+              const templateName = (template.name || '').replace(/"/g, '""');
+              const exerciseName = (ex.name || '').replace(/"/g, '""');
+              const instructions = (ex.instructions || '').replace(/"/g, '""');
+              const videoUrl = (ex.videoUrl || '').replace(/"/g, '""');
+              csv += `${key},"${templateName}","${exerciseName}",${ex.sets},${ex.reps},"${instructions}","${videoUrl}"\n`;
             });
           });
           
@@ -575,6 +581,7 @@
           a.href = url;
           a.download = 'templates.csv';
           a.click();
+          URL.revokeObjectURL(url);
         };
 
         return (
