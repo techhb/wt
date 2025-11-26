@@ -580,6 +580,12 @@ const getTrendForExercise = (exerciseName) => {
           return { type: 'youtube', id, params };
         }
 
+        // YouTube Shorts support
+        if (url.includes('youtube.com/shorts/')) {
+          const id = url.split('shorts/')[1].split('?')[0].split('&')[0].split('/')[0];
+          return { type: 'youtube', id, params: '' };
+        }
+
         if (url.includes('youtube.com/watch') && url.includes('v=')) {
           const id = url.split('v=')[1].split('&')[0].split('#')[0];
           return { type: 'youtube', id, params: '' };
