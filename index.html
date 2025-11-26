@@ -353,7 +353,11 @@ const getTrendForExercise = (exerciseName) => {
     });
     
     loadData(user.uid);
+  } catch (error) {
+    console.error('Error saving workout:', error);
+    alert('Error saving workout.');
   }
+};
 
       const saveWorkoutProgress = async (workoutData, workoutId = null) => {
         if (!user) return;
