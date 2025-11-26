@@ -35,6 +35,24 @@
       background-color: #f7f8f8;
       border-color: #d2d3d4;
     }
+	
+	@keyframes prPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.pr-animate {
+  animation: prPulse 0.5s ease-in-out 3;
+}
+@keyframes confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  animation: confetti 3s linear forwards;
+}
   </style>
 </head>
 <body>
@@ -57,7 +75,9 @@
     }
     const db = firebase.firestore();
     const auth = firebase.auth();
-
+const Award = (p) => <Icon {...p}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></Icon>;
+const TrendingDown = (p) => <Icon {...p}><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></Icon>;
+const Minus2 = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
     const Icon = ({ children, className = "w-5 h-5" }) => (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
     );
@@ -140,6 +160,8 @@
       const [password, setPassword] = useState('');
       const [authMode, setAuthMode] = useState('login');
       const [newTemplate, setNewTemplate] = useState({ name: '', exercises: [] });
+	  const [personalRecords, setPersonalRecords] = useState({});
+const [showPRModal, setShowPRModal] = useState(null);
       const [showAddExercise, setShowAddExercise] = useState(false);
       const [editingExerciseInWorkout, setEditingExerciseInWorkout] = useState(null);
 
@@ -151,7 +173,10 @@
         });
         return unsubscribe;
       }, []);
-
+const prsDoc = await db.collection('users').doc(uid).collection('data').doc('prs').get();
+if (prsDoc.exists) {
+  setPersonalRecords(prsDoc.data().records || {});
+}
       const loadData = async (uid) => {
         try {
           const templatesDoc = await db.collection('users').doc(uid).collection('data').doc('templates').get();
@@ -177,7 +202,102 @@
           console.error('Error loading:', error);
         }
       };
+const savePRs = async (newPRs) => {
+  if (!user) return;
+  try {
+    await db.collection('users').doc(user.uid).collection('data').doc('prs').set({
+      records: newPRs,
+      updated: new Date().toISOString()
+    });
+    setPersonalRecords(newPRs);
+  } catch (error) {
+    console.error('Error saving PRs:', error);
+  }
+};
 
+const checkAndUpdatePR = (exerciseName, weight, reps) => {
+  const currentPR = personalRecords[exerciseName];
+  const newWeight = parseFloat(weight);
+  const newReps = parseInt(reps);
+  
+  if (!newWeight || !newReps) return false;
+
+  // Estimate 1RM: weight * (1 + reps/30)
+  const estimated1RM = newWeight * (1 + newReps / 30);
+
+  if (!currentPR || estimated1RM > currentPR.estimated1RM) {
+    const newPRs = {
+      ...personalRecords,
+      [exerciseName]: {
+        weight: newWeight,
+        reps: newReps,
+        estimated1RM: estimated1RM,
+        date: new Date().toISOString()
+      }
+    };
+    savePRs(newPRs);
+    
+    // Show celebration modal
+    setShowPRModal({ 
+      exercise: exerciseName, 
+      weight: newWeight, 
+      reps: newReps, 
+      estimated1RM: estimated1RM.toFixed(1),
+      isNew: !currentPR,
+      previous: currentPR ? currentPR.estimated1RM.toFixed(1) : null
+    });
+    
+    // Create confetti effect
+    createConfetti();
+    
+    return true;
+  }
+  return false;
+};
+
+const createConfetti = () => {
+  const colors = ['#FFD700', '#FFA500', '#FF6347', '#FF1493', '#00CED1'];
+  for (let i = 0; i < 50; i++) {
+    setTimeout(() => {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + 'vw';
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.animationDelay = Math.random() * 0.5 + 's';
+      document.body.appendChild(confetti);
+      setTimeout(() => confetti.remove(), 3000);
+    }, i * 30);
+  }
+};
+
+const getLastWorkouts = (exerciseName, count = 5) => {
+  const history = [];
+  for (let w of workouts) {
+    if (!w.completed) continue; // Only completed workouts
+    const ex = w.exercises?.find(e => e.name === exerciseName);
+    if (ex && ex.weights && ex.weights.some(w => w)) {
+      history.push({
+        date: w.start,
+        exercise: ex
+      });
+      if (history.length >= count) break;
+    }
+  }
+  return history;
+};
+
+const getTrendForExercise = (exerciseName) => {
+  const history = getLastWorkouts(exerciseName, 3);
+  if (history.length < 2) return 'neutral';
+
+  const getMaxWeight = (ex) => Math.max(...ex.weights.map(w => parseFloat(w) || 0));
+  const lastMax = getMaxWeight(history[0].exercise);
+  const prevMax = getMaxWeight(history[1].exercise);
+
+  if (lastMax > prevMax * 1.02) return 'up';     // 2% increase
+  if (lastMax < prevMax * 0.98) return 'down';   // 2% decrease
+  return 'neutral';
+};
       const saveTemplates = async (newTemplates) => {
         if (!user) return;
         try {
@@ -212,19 +332,25 @@
         return allExercises;
       };
 
-      const saveWorkoutToDb = async (workoutData) => {
-        if (!user) return;
-        try {
-          await db.collection('users').doc(user.uid).collection('workouts').add({
-            ...workoutData,
-            created: new Date().toISOString()
-          });
-          loadData(user.uid);
-        } catch (error) {
-          console.error('Error saving workout:', error);
-          alert('Error saving workout.');
+     const saveWorkoutToDb = async (workoutData) => {
+  if (!user) return;
+  try {
+    await db.collection('users').doc(user.uid).collection('workouts').add({
+      ...workoutData,
+      created: new Date().toISOString()
+    });
+    
+    // Check for PRs
+    workoutData.exercises.forEach(ex => {
+      ex.weights?.forEach((weight, idx) => {
+        if (weight && ex.done[idx] && ex.reps2[idx]) {
+          checkAndUpdatePR(ex.name, weight, ex.reps2[idx]);
         }
-      };
+      });
+    });
+    
+    loadData(user.uid);
+  }
 
       const saveWorkoutProgress = async (workoutData, workoutId = null) => {
         if (!user) return;
@@ -469,7 +595,39 @@
 
         return null;
       };
-
+// PR Modal
+if (showPRModal) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-lg p-8 max-w-md w-full text-center pr-animate">
+        <Award className="w-24 h-24 mx-auto mb-4 text-white animate-bounce" />
+        <h2 className="text-4xl font-bold text-white mb-2">
+          🏆 {showPRModal.isNew ? 'NEW' : 'IMPROVED'} PERSONAL RECORD! 🏆
+        </h2>
+        <div className="bg-white bg-opacity-20 rounded-lg p-6 mb-4">
+          <div className="text-white text-2xl font-bold mb-3">{showPRModal.exercise}</div>
+          <div className="text-white text-3xl font-black mb-2">
+            {showPRModal.weight} lbs × {showPRModal.reps} reps
+          </div>
+          <div className="text-white text-xl font-semibold mb-3">
+            Estimated 1RM: {showPRModal.estimated1RM} lbs
+          </div>
+          {showPRModal.previous && (
+            <div className="text-white text-sm opacity-90">
+              Previous: {showPRModal.previous} lbs (+{(showPRModal.estimated1RM - showPRModal.previous).toFixed(1)} lbs)
+            </div>
+          )}
+        </div>
+        <button 
+          onClick={() => setShowPRModal(null)} 
+          className="bg-white text-orange-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transform hover:scale-105 transition"
+        >
+          HELL YEAH! 💪
+        </button>
+      </div>
+    </div>
+  );
+}
       if (loading) {
         return (
           <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
@@ -590,7 +748,30 @@
                   Back
                 </button>
               </div>
-
+{Object.keys(personalRecords).length > 0 && (
+          <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-lg p-6 mb-6">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <Award className="w-6 h-6" />
+              Personal Records 🏆
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {Object.entries(personalRecords).map(([exercise, pr]) => (
+                <div key={exercise} className="bg-white bg-opacity-20 rounded-lg p-4 hover:bg-opacity-30 transition">
+                  <div className="text-white font-bold text-sm mb-2">{exercise}</div>
+                  <div className="text-white text-2xl font-black mb-1">
+                    {pr.weight} lbs × {pr.reps}
+                  </div>
+                  <div className="text-white text-xs opacity-90 mb-1">
+                    Est. 1RM: {pr.estimated1RM.toFixed(1)} lbs
+                  </div>
+                  <div className="text-white text-xs opacity-75">
+                    {new Date(pr.date).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
               <div className="space-y-6">
                 {weeklyData.map(([weekKey, data]) => {
                   const weekDate = new Date(weekKey);
@@ -1150,13 +1331,21 @@
                 </button>
               </div>
 
-              {workout.exercises.map((ex, i) => {
-                const lastWorkout = getLastWorkout(ex.name);
-                
-                return (
-                  <div key={i} className="bg-slate-700 rounded-lg p-4 mb-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-white font-semibold">{ex.name}</h3>
+             {workout.exercises.map((ex, i) => {
+  const workoutHistory = getLastWorkouts(ex.name, 5);
+  const trend = getTrendForExercise(ex.name);
+  const currentPR = personalRecords[ex.name];
+  
+  return (
+    <div key={i} className="bg-slate-700 rounded-lg p-4 mb-3">
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-white font-semibold">{ex.name}</h3>
+          {trend === 'up' && <TrendingUp className="w-4 h-4 text-green-400" title="Improving!" />}
+          {trend === 'down' && <TrendingDown className="w-4 h-4 text-red-400" title="Regressing" />}
+          {trend === 'neutral' && <Minus2 className="w-4 h-4 text-gray-400" title="Plateau" />}
+          {currentPR && <Award className="w-4 h-4 text-yellow-400" title="You have a PR for this!" />}
+        </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setEditingExerciseInWorkout(i)}
@@ -1175,16 +1364,37 @@
                       </div>
                     </div>
                     
-                    {lastWorkout && (
-                      <div className="bg-blue-900 bg-opacity-50 border border-blue-500 rounded p-2 mb-3 text-xs">
-                        <div className="text-blue-300 font-semibold mb-1">📊 Last Completed Workout:</div>
-                        <div className="text-blue-200 flex gap-4 flex-wrap">
-                          {lastWorkout.weights.map((w, idx) => w && lastWorkout.done[idx] ? (
-                            <span key={idx}>Set {idx + 1}: {w} lbs × {lastWorkout.reps2?.[idx] || lastWorkout.reps} reps</span>
-                          ) : null)}
-                        </div>
-                      </div>
-                    )}
+                    {workoutHistory.length > 0 && (
+  <div className="bg-blue-900 bg-opacity-50 border border-blue-500 rounded p-3 mb-3">
+    <div className="text-blue-300 font-semibold text-xs mb-2 flex items-center justify-between">
+      <span>📊 Last {workoutHistory.length} Workout{workoutHistory.length > 1 ? 's' : ''}:</span>
+      {trend === 'up' && <span className="text-green-400">↑ IMPROVING</span>}
+      {trend === 'down' && <span className="text-red-400">↓ REGRESSING</span>}
+      {trend === 'neutral' && <span className="text-gray-400">→ PLATEAU</span>}
+    </div>
+    <div className="space-y-1">
+      {workoutHistory.map((h, idx) => (
+        <div key={idx} className="text-blue-200 text-xs">
+          <span className="font-semibold">{new Date(h.date).toLocaleDateString()}</span>
+          <span className="text-blue-300"> • </span>
+          {h.exercise.weights.map((w, i) => w && h.exercise.done[i] ? (
+            <span key={i} className="mr-2">
+              {w} lbs × {h.exercise.reps2?.[i] || h.exercise.reps}
+            </span>
+          ) : null)}
+        </div>
+      ))}
+    </div>
+    {currentPR && (
+      <div className="mt-2 pt-2 border-t border-blue-400">
+        <div className="text-yellow-300 font-bold text-xs">
+          🏆 Your PR: {currentPR.weight} lbs × {currentPR.reps} 
+          <span className="text-yellow-200"> (Est. 1RM: {currentPR.estimated1RM.toFixed(1)} lbs)</span>
+        </div>
+      </div>
+    )}
+  </div>
+)}
                     
                     {ex.instructions && (
                       <div className="bg-slate-600 rounded p-3 mb-2">
@@ -1249,12 +1459,13 @@
         );
       }
 
-      const stats = {
-        totalWorkouts: workouts.filter(w => w.completed).length,
-        totalSets: workouts.filter(w => w.completed).reduce((s, w) => s + w.exercises.reduce((t, e) => t + e.done.filter(Boolean).length, 0), 0),
-        avgPerWeek: (workouts.filter(w => w.completed).length / 13).toFixed(1)
-      };
-
+      
+const stats = {
+  totalWorkouts: workouts.filter(w => w.completed).length,
+  totalSets: workouts.filter(w => w.completed).reduce((s, w) => s + w.exercises.reduce((t, e) => t + e.done.filter(Boolean).length, 0), 0),
+  avgPerWeek: (workouts.filter(w => w.completed).length / 13).toFixed(1),
+  totalPRs: Object.keys(personalRecords).length
+};
       const inProgressWorkouts = workouts.filter(w => w.inProgress && !w.completed);
       const completedWorkouts = workouts.filter(w => w.completed);
 
@@ -1291,6 +1502,10 @@
                 <div className="flex items-center gap-2 mb-1"><Clock /><span className="text-sm">Avg/Week</span></div>
                 <div className="text-3xl font-bold">{stats.avgPerWeek}</div>
               </div>
+			  <div className="bg-yellow-500 rounded-lg p-4 text-white">
+				<div className="flex items-center gap-2 mb-1"><Award /><span className="text-sm">Personal Records</span></div>
+				<div className="text-3xl font-bold">{stats.totalPRs}</div>
+			</div>
             </div>
 
             <div className="mb-6">
