@@ -173,10 +173,7 @@ const [showPRModal, setShowPRModal] = useState(null);
         });
         return unsubscribe;
       }, []);
-const prsDoc = await db.collection('users').doc(uid).collection('data').doc('prs').get();
-if (prsDoc.exists) {
-  setPersonalRecords(prsDoc.data().records || {});
-}
+
       const loadData = async (uid) => {
         try {
           const templatesDoc = await db.collection('users').doc(uid).collection('data').doc('templates').get();
@@ -198,6 +195,12 @@ if (prsDoc.exists) {
             workoutsData.push({ id: doc.id, ...doc.data() });
           });
           setWorkouts(workoutsData);
+
+          // Load Personal Records
+          const prsDoc = await db.collection('users').doc(uid).collection('data').doc('prs').get();
+          if (prsDoc.exists) {
+            setPersonalRecords(prsDoc.data().records || {});
+          }
         } catch (error) {
           console.error('Error loading:', error);
         }
