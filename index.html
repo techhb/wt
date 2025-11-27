@@ -93,6 +93,9 @@ const Minus2 = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12"/></Icon>
     const Edit2 = (p) => <Icon {...p} className="w-4 h-4"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
     const Plus = (p) => <Icon {...p} className="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
     const Minus = (p) => <Icon {...p} className="w-4 h-4"><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
+    const ChevronUp = (p) => <Icon {...p} className="w-4 h-4"><polyline points="18 15 12 9 6 15"/></Icon>;
+    const ChevronDown = (p) => <Icon {...p} className="w-4 h-4"><polyline points="6 9 12 15 18 9"/></Icon>;
+    const GripVertical = (p) => <Icon {...p} className="w-4 h-4"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></Icon>;
     const LogOut = (p) => <Icon {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Icon>;
     const BarChart = (p) => <Icon {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></Icon>;
 
@@ -473,6 +476,24 @@ const getTrendForExercise = (exerciseName) => {
         if (!confirm('Remove this exercise from the workout?')) return;
         const w = { ...workout };
         w.exercises.splice(exerciseIndex, 1);
+        setWorkout(w);
+      };
+
+      const moveExerciseUp = (exerciseIndex) => {
+        if (exerciseIndex === 0) return; // Already at top
+        const w = { ...workout };
+        const temp = w.exercises[exerciseIndex];
+        w.exercises[exerciseIndex] = w.exercises[exerciseIndex - 1];
+        w.exercises[exerciseIndex - 1] = temp;
+        setWorkout(w);
+      };
+
+      const moveExerciseDown = (exerciseIndex) => {
+        if (exerciseIndex === workout.exercises.length - 1) return; // Already at bottom
+        const w = { ...workout };
+        const temp = w.exercises[exerciseIndex];
+        w.exercises[exerciseIndex] = w.exercises[exerciseIndex + 1];
+        w.exercises[exerciseIndex + 1] = temp;
         setWorkout(w);
       };
 
@@ -1353,29 +1374,58 @@ if (showPRModal) {
     <div key={i} className="bg-slate-700 rounded-lg p-4 mb-3">
       <div className="flex justify-between items-start mb-2">
         <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => moveExerciseUp(i)}
+              disabled={i === 0}
+              className={`${i === 0 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white'}`}
+              title="Move up"
+            >
+              <ChevronUp />
+            </button>
+            <button
+              onClick={() => moveExerciseDown(i)}
+              disabled={i === workout.exercises.length - 1}
+              className={`${i === workout.exercises.length - 1 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white'}`}
+              title="Move down"
+            >
+              <ChevronDown />
+            </button>
+          </div>
+          <GripVertical className="text-gray-500" />
           <h3 className="text-white font-semibold">{ex.name}</h3>
           {trend === 'up' && <TrendingUp className="w-4 h-4 text-green-400" title="Improving!" />}
           {trend === 'down' && <TrendingDown className="w-4 h-4 text-red-400" title="Regressing" />}
           {trend === 'neutral' && <Minus2 className="w-4 h-4 text-gray-400" title="Plateau" />}
-          {currentPR && <Award className="w-4 h-4 text-yellow-400" title="You have a PR for this!" />}
+          {currentPR && <Award className="w-4 h-4 text-yellow-400" title="You have a PR!" />}
         </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingExerciseInWorkout(i)}
-                          className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-slate-600 rounded"
-                          title="Edit sets"
-                        >
-                          {ex.sets} sets
-                        </button>
-                        <button
-                          onClick={() => removeExerciseFromWorkout(i)}
-                          className="text-red-400 hover:text-red-300"
-                          title="Remove exercise"
-                        >
-                          <Trash2 />
-                        </button>
-                      </div>
-                    </div>
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-1 bg-slate-600 rounded p-1">
+            <button
+              onClick={() => removeSetFromExercise(i)}
+              className="text-red-400 hover:text-red-300 px-2 py-1 hover:bg-slate-500 rounded"
+              title="Remove set"
+            >
+              <Minus />
+            </button>
+            <span className="text-white text-sm px-2 py-1 font-semibold">{ex.sets}</span>
+            <button
+              onClick={() => addSetToExercise(i)}
+              className="text-green-400 hover:text-green-300 px-2 py-1 hover:bg-slate-500 rounded"
+              title="Add set"
+            >
+              <Plus />
+            </button>
+          </div>
+          <button
+            onClick={() => removeExerciseFromWorkout(i)}
+            className="text-red-400 hover:text-red-300"
+            title="Remove exercise"
+          >
+            <Trash2 />
+          </button>
+        </div>
+      </div>
                     
                     {workoutHistory.length > 0 && (
   <div className="bg-blue-900 bg-opacity-50 border border-blue-500 rounded p-3 mb-3">
